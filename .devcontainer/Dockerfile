@@ -12,6 +12,10 @@ RUN apt-get update \
         ros-${ROS_DISTRO}-moveit\
         build-essential \
         python3-colcon-common-extensions \
+        libopencv-dev \
+        python3-opencv \
+        ros-${ROS_DISTRO}-cv-bridge \
+        ros-${ROS_DISTRO}-image-transport \
         #
         # Clean up
         && apt-get autoremove -y \
