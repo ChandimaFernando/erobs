@@ -10,14 +10,6 @@ KinectRecorder::KinectRecorder()
   subscription_depth_.subscribe(this, "/depth/image_raw");
 
   // Synchronize messages from the two topics
-
-  // syncApproximate(approximate_policy(10), subscription_rgb_, subscription_depth_);
-  // syncApproximate.registercallback(&KinectRecorder::image_raw_callback, this);
-
-  // message_filters::TimeSynchronizer<sensor_msgs::msg::Image,
-  //   sensor_msgs::msg::Image> sync_(subscription_rgb_, subscription_depth_, 0.1);
-  // sync_.registerCallback(std::bind(&KinectRecorder::image_raw_callback, this, _1, _2));
-
   sync_ =
     std::make_shared<message_filters::Synchronizer<sync_policy>>(
     sync_policy(

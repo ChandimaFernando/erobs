@@ -29,15 +29,7 @@ private:
   void image_raw_callback(
     const sensor_msgs::msg::Image::ConstSharedPtr & rgb_msg,
     const sensor_msgs::msg::Image::ConstSharedPtr & depth_msg);
-  // void depth_raw_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg);
 
-
-  // typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::Image,
-  //     sensor_msgs::msg::Image> approximate_policy;
-  // message_filters::Synchronizer<approximate_policy> syncApproximate;
-
-
-  // Define synchronizer
   using sync_policy = message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::Image,
       sensor_msgs::msg::Image>;
 
