@@ -13,6 +13,7 @@ find_package(sensor_msgs REQUIRED)
 find_package(image_transport REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
+find_package(message_filters REQUIRED)
 
 # uncomment the following section in order to fill in
 # further dependencies manually.
@@ -25,6 +26,7 @@ set(dependencies
   image_transport
   cv_bridge
   OpenCV
+  message_filters
 )
 
 include_directories(include)  # This makes sure the libraries are visible

@@ -1,40 +1,55 @@
 #include <kinect_recorder/kinect_recorder.hpp>
 
 using std::placeholders::_1;
+using std::placeholders::_2;
 
 KinectRecorder::KinectRecorder()
 : Node("KinectRecorder")
 {
-  subscription_rgb_ = this->create_subscription<sensor_msgs::msg::Image>(
-    "/rgb/image_raw", 5, std::bind(&KinectRecorder::rgb_raw_callback, this, _1));
+  subscription_rgb_.subscribe(this, "/rgb/image_raw");
+  subscription_depth_.subscribe(this, "/depth/image_raw");
 
-  subscription_depth_ = this->create_subscription<sensor_msgs::msg::Image>(
-    "/depth/image_raw", 5, std::bind(&KinectRecorder::depth_raw_callback, this, _1));
+  // Synchronize messages from the two topics
+
+  // syncApproximate(approximate_policy(10), subscription_rgb_, subscription_depth_);
+  // syncApproximate.registercallback(&KinectRecorder::image_raw_callback, this);
+
+  // message_filters::TimeSynchronizer<sensor_msgs::msg::Image,
+  //   sensor_msgs::msg::Image> sync_(subscription_rgb_, subscription_depth_, 0.1);
+  // sync_.registerCallback(std::bind(&KinectRecorder::image_raw_callback, this, _1, _2));
+
+  sync_ =
+    std::make_shared<message_filters::Synchronizer<sync_policy>>(
+    sync_policy(
+      5), subscription_rgb_, subscription_depth_);
+  sync_->registerCallback(&KinectRecorder::image_raw_callback, this);
 
 }
 
-void KinectRecorder::rgb_raw_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
+void KinectRecorder::image_raw_callback(
+  const sensor_msgs::msg::Image::ConstSharedPtr & rgb_msg,
+  const sensor_msgs::msg::Image::ConstSharedPtr & depth_msg)
 {
   // Convert ROS image message to cv::Mat
-  cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
-  // Save the image as PNG
-  std::string filename = "data/rgb/image_" + std::to_string(msg->header.stamp.sec) + ".png";
-  cv::imwrite(filename, cv_ptr->image);
-}
+  cv_bridge::CvImagePtr cv_ptr_rgb =
+    cv_bridge::toCvCopy(rgb_msg, sensor_msgs::image_encodings::BGR8);
 
-void KinectRecorder::depth_raw_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
-{
   // Convert ROS image message to cv::Mat
-  cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::TYPE_32FC1);
+  cv_bridge::CvImagePtr cv_ptr_depth = cv_bridge::toCvCopy(
+    depth_msg,
+    sensor_msgs::image_encodings::TYPE_32FC1);
 
-  // Convert 32FC1 image to 8-bit grayscale for display
-  cv::Mat image_8bit;
-  cv_ptr->image.convertTo(image_8bit, CV_8U, 255.0);
-
+  // Convert 32FC1 image to CV_16UC1
+  cv_ptr_depth->image.convertTo(cv_ptr_depth->image, CV_16UC1, 65535.0);
 
   // Save the image as PNG
-  std::string filename = "data/depth/image_" + std::to_string(msg->header.stamp.sec) + ".png";
-  cv::imwrite(filename, image_8bit);
+  std::string filename_rgb = "data/rgb/" + std::to_string(rgb_msg->header.stamp.sec) + ".png";
+  cv::imwrite(filename_rgb, cv_ptr_rgb->image);
+
+  // Save the image as PNG
+  std::string filename_depth = "data/depth/" + std::to_string(depth_msg->header.stamp.sec) + ".png";
+  cv::imwrite(filename_depth, cv_ptr_depth->image);
+
 }
 
 
