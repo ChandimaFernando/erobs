@@ -77,7 +77,7 @@ def write_masks_to_folder(masks, path: str, fname: str) -> None:
 
 
 def main(args: argparse.Namespace) -> None:
-    """Do sam here."""
+    """Do sam here. It takes two critical arguments. x-y coordinate of the location of the object in the mask"""
     print('Loading model...')
     sam = sam_model_registry[args.model_type](checkpoint=args.checkpoint)
     _ = sam.to(device=args.device)

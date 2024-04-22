@@ -215,40 +215,46 @@ def main(args: argparse.Namespace) -> None:
     os.makedirs(args.output, exist_ok=True)
 
     # Define range of red hues in HSV
-    lower_red = np.array([0, 50, 50])
-    upper_red = np.array([10, 255, 255])
-    
+    lower_red = np.array([110, 65, 220])
+    upper_red = np.array([140, 95, 255])
+
     for t in targets:
         print(f"Processing '{t}'...")
-        image_org = cv2.imread(t)
-        if image_org is None:
+        image = cv2.imread(t)
+        if image is None:
             print(f"Could not load '{t}' as an image, skipping...")
             continue
-        image = cv2.cvtColor(image_org, cv2.COLOR_BGR2RGB)
-        image_hsv = cv2.cvtColor(image_org, cv2.COLOR_BGR2HSV)
+        # image = cv2.cvtColor(image_org, cv2.COLOR_BGR2RGB)
+        # image_hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
 
         masks = generator.generate(image)
 
         base = os.path.basename(t)
         base = os.path.splitext(base)[0]
-        # save_base = os.path.join(args.output, base)
+        save_base = os.path.join(args.output, base)
+        write_masks_to_folder(masks, save_base)
 
         # For each mask segment, analyze its color in the org image
 
         for i, mask_data in enumerate(masks):
-            mask = mask_data["segmentation"]
+            mask_boolean = mask_data["segmentation"]
 
-            hsv_mask = cv2.bitwise_and(image_hsv, mask)
-            red_selected_hsv = cv2.inRange(hsv_mask, lower_red, upper_red)
+            # Convert the boolean mask to same data type as hsv
+            mask_unit8 = np.stack((mask_boolean.astype(np.uint8) * 255, mask_boolean.astype(np.uint8) * 255, mask_boolean.astype(np.uint8) * 255), axis=2)
+
+            bgr_msk = cv2.bitwise_and(image, mask_unit8)
+
+            red_selected_rgb = cv2.inRange(bgr_msk, lower_red, upper_red)
+
+            cv2.imwrite(os.path.join(args.output, f'{base}_cropped_rgb_{i}.png'), bgr_msk)
 
             # Calculate the total number of pixels and the number of red pixels
-            total_pixels = np.prod(image.shape[:2])
-            red_pixels = np.count_nonzero(red_selected_hsv)
+            total_pixels = mask_data['area']
+            red_pixels = np.count_nonzero(red_selected_rgb)
     
             # Calculate the percentage of red pixels
             red_percentage = (red_pixels / total_pixels) * 100
-            print(i)
-            print(red_percentage)
+            print(f'image {i} red pixels: {red_pixels} red percentage: {red_percentage}')
 
             pdb.set_trace()
 
