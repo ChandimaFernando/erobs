@@ -7,7 +7,8 @@ KinectRecorder::KinectRecorder()
 : Node("KinectRecorder")
 {
   subscription_rgb_.subscribe(this, "/rgb/image_raw");
-  subscription_depth_.subscribe(this, "/depth/image_raw");
+  // subscription_depth_.subscribe(this, "/depth/image_raw");
+  subscription_depth_.subscribe(this, "/depth_to_rgb/image_raw");
 
   // Synchronize messages from the two topics
   sync_ =
@@ -32,7 +33,7 @@ void KinectRecorder::image_raw_callback(
     sensor_msgs::image_encodings::TYPE_32FC1);
 
   // Convert 32FC1 image to CV_16UC1
-  cv_ptr_depth->image.convertTo(cv_ptr_depth->image, CV_16UC1, 65535.0);
+  cv_ptr_depth->image.convertTo(cv_ptr_depth->image, CV_16UC1);
 
   // Save the image as PNG
   std::string filename_rgb = "data/rgb/" + std::to_string(rgb_msg->header.stamp.sec) + ".png";

@@ -197,13 +197,18 @@ def get_amg_kwargs(args):
 
 
 def main(args: argparse.Namespace) -> None:
-    print("Loading model...")
+    
+    template = cv2.imread('t_shape.png')
+    template_rgb = cv2.cvtColor(template, cv2.COLOR_BGR2RGB)
+    
+    """Do sam here. It takes two critical arguments. x-y coordinate of the location of the object in the mask"""
+    print('Loading model...')
     sam = sam_model_registry[args.model_type](checkpoint=args.checkpoint)
     _ = sam.to(device=args.device)
-    output_mode = "coco_rle" if args.convert_to_rle else "binary_mask"
-    amg_kwargs = get_amg_kwargs(args)
-    generator = SamAutomaticMaskGenerator(sam, output_mode=output_mode, **amg_kwargs)
 
+    predictor = SamPredictor(sam)
+
+    # Prepare the inputs here to be read
     if not os.path.isdir(args.input):
         targets = [args.input]
     else:
@@ -214,49 +219,30 @@ def main(args: argparse.Namespace) -> None:
 
     os.makedirs(args.output, exist_ok=True)
 
-    # Define range of red hues in HSV
-    lower_red = np.array([110, 65, 220])
-    upper_red = np.array([140, 95, 255])
-
     for t in targets:
         print(f"Processing '{t}'...")
         image = cv2.imread(t)
         if image is None:
             print(f"Could not load '{t}' as an image, skipping...")
             continue
-        # image = cv2.cvtColor(image_org, cv2.COLOR_BGR2RGB)
-        # image_hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-        masks = generator.generate(image)
+        predictor.set_image(image)
 
+        input_point = np.array([[args.point_x, args.point_y]])
+        input_label = np.array([1])
+
+        masks, scores, logits = predictor.predict(
+            point_coords=input_point,
+            point_labels=input_label,
+            multimask_output=True,
+        )
+
+        pdb.set_trace()
         base = os.path.basename(t)
         base = os.path.splitext(base)[0]
-        save_base = os.path.join(args.output, base)
-        write_masks_to_folder(masks, save_base)
 
-        # For each mask segment, analyze its color in the org image
-
-        for i, mask_data in enumerate(masks):
-            mask_boolean = mask_data["segmentation"]
-
-            # Convert the boolean mask to same data type as hsv
-            mask_unit8 = np.stack((mask_boolean.astype(np.uint8) * 255, mask_boolean.astype(np.uint8) * 255, mask_boolean.astype(np.uint8) * 255), axis=2)
-
-            bgr_msk = cv2.bitwise_and(image, mask_unit8)
-
-            red_selected_rgb = cv2.inRange(bgr_msk, lower_red, upper_red)
-
-            cv2.imwrite(os.path.join(args.output, f'{base}_cropped_rgb_{i}.png'), bgr_msk)
-
-            # Calculate the total number of pixels and the number of red pixels
-            total_pixels = mask_data['area']
-            red_pixels = np.count_nonzero(red_selected_rgb)
-    
-            # Calculate the percentage of red pixels
-            red_percentage = (red_pixels / total_pixels) * 100
-            print(f'image {i} red pixels: {red_pixels} red percentage: {red_percentage}')
-
-            pdb.set_trace()
+        write_masks_to_folder(masks, args.output, base)
 
     print("Done!")
 
