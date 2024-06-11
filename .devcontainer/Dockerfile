@@ -3,6 +3,9 @@ FROM althack/ros2:humble-dev
 # ** [Optional] Uncomment this section to install additional packages. **
 #
 ENV DEBIAN_FRONTEND=noninteractive
+
+RUN add-apt-repository universe
+
 RUN apt-get update \
         && apt-get -y install --no-install-recommends \
         python3-pip \
@@ -17,6 +20,7 @@ RUN apt-get update \
         libeigen3-dev \
         ros-${ROS_DISTRO}-cv-bridge \
         ros-${ROS_DISTRO}-image-transport \
+        apt-get install ros-${ROS_DISTRO}-image-pipeline \
         #
         # Clean up
         && apt-get autoremove -y \
