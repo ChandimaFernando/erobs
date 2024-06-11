@@ -40,10 +40,10 @@ private:
     const sensor_msgs::msg::Image::ConstSharedPtr & depth_msg);
 
   cv::Mat cameraMatrix_ =
-    (cv::Mat_<double>(3, 3) << 974.724, 0.0, 1024.82, 0.0, 974.456, 773.291, 0, 0, 1.0 );
+    (cv::Mat_<double>(3, 3) << 974.724, 0.0, 1024.82, 0.0, 974.456, 773.291, 0, 0, 1.0, 2.87826, 2.23121, 0.364764 );
 
   // In OpenCV, the distortion coefficients are usually represented as a 1x5 (or sometimes 1x8) matrix:
-  // distCoeffs_= [k1, k2, p1, p2, k3] where
+  // distCoeffs_= [k1, k2, p1, p2, k3, k4, k5, k6] where
   // k1, k2, k3 = radial distortion coefficients
   // p1, p2 = tangential distortion coefficients
   // For Azure kinect, they can be found when running the ROS2 camera node and explained in the following:
@@ -58,18 +58,16 @@ private:
   cv::Ptr<cv::aruco::Dictionary> dictionary_;
   using sync_policy = message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::Image,
       sensor_msgs::msg::Image>;
+  double physical_marker_size_ = 0.021 ; // in meters
 
   // Define synchronizer
   std::shared_ptr<message_filters::Synchronizer<sync_policy>> sync_;
-
-  // Kalman filter 
-  KalmanFilter kalman_filter_;
 
 
   std::shared_ptr<filters::MultiChannelFilterBase<double>> median_filter_ =
     std::make_shared<filters::MultiChannelMedianFilter<double>>();
 
-
+  int moving_window_median_ = 5 ;
   std::vector<double> median_filtered_rpy;
   // std::vector<double> raw_rpy;
 
@@ -80,6 +78,8 @@ private:
   double dt = 0.0001;
 
   void appendVectorsToCSV(const std::string& filename, std::vector<double> data);
+
+  int tag_x_, tag_y_ ;
 
 public:
   PoseEstimator();
