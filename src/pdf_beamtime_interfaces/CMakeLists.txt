@@ -18,6 +18,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/CylinderObstacleMsg.srv"
   "srv/BlueskyInterruptMsg.srv"
   "srv/GripperControlMsg.srv"
+  "srv/EstimatedPoseMsg.srv"
 )
 
 

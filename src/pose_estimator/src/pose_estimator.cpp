@@ -33,6 +33,12 @@ PoseEstimator::PoseEstimator()
     6, "", "number_of_observations",
     this->get_node_logging_interface(), this->get_node_parameters_interface());
 
+  rclcpp::Service<pdf_beamtime_interfaces::srv::EstimatedPoseMsg>::SharedPtr service =
+    this->create_service<pdf_beamtime_interfaces::srv::EstimatedPoseMsg>(
+    "pose_service",
+    std::bind(
+      &PoseEstimator::get_pose, this, _1, _2));
+
 }
 
 void PoseEstimator::image_raw_callback(
@@ -54,24 +60,7 @@ void PoseEstimator::image_raw_callback(
     // Make a copy of the image for saving + visualizing
     cv::Mat outputImage = cv_ptr_rgb->image.clone();
 
-    // Optiona visualization: Draw the detected corners
-    cv::aruco::drawDetectedMarkers(
-      outputImage, markerCorners_,
-      markerIds_);
-
     if (!markerIds_.empty()) {
-
-      // detect corner coords in the image for depth caliberation
-      for (size_t i = 0; i < markerIds_.size(); ++i){
-        cv::Point2f marker_center(0, 0);
-        for (const auto& corner : markerCorners_[i])
-        {
-          marker_center += corner;
-        }
-        marker_center /= 4.0;
-        tag_x_ = std::round(marker_center.x) ;
-        tag_y_ = std::round(marker_center.y) ;
-      }
 
       // rvecs: rotational vector
       // tvecs: translation vector
@@ -108,70 +97,23 @@ void PoseEstimator::image_raw_callback(
       // Median filter gets applied
       median_filter_->update(raw_rpyxyz, median_filtered_rpy);
 
-      RCLCPP_INFO(
-        this->get_logger(), "rpy: %f \t %f \t %f raw", roll, pitch, yaw);
-      RCLCPP_INFO(
-        this->get_logger(), "rpy: %f \t %f \t %f after mean filter", median_filtered_rpy[0],
-        median_filtered_rpy[1],
-        median_filtered_rpy[2]);
-
-      RCLCPP_INFO(
-        this->get_logger(), "translation xyz: %f \t %f \t %f ", tranlsation[0], tranlsation[1] , tranlsation[2]);
-      RCLCPP_INFO(
-        this->get_logger(), "translation xyz: %f \t %f \t %f filtered", median_filtered_rpy[3], median_filtered_rpy[4] , median_filtered_rpy[5]);
-
-      // appendVectorsToCSV("sesnor_data_raw.csv", raw_rpyxyz);
-      // appendVectorsToCSV("sesnor_data_filtered.csv", median_filtered_rpy);
-
-      // Save the image as PNG
-      std::string filename_rgb = "data/rgb_pose/" + std::to_string(rgb_msg->header.stamp.sec) +
-        ".png";
-      // cv::imwrite(filename_rgb, outputImage);
-
-
-      // Convert ROS image message to cv::Mat
-      cv_bridge::CvImagePtr cv_ptr_depth = cv_bridge::toCvCopy(
-        depth_msg,
-        sensor_msgs::image_encodings::TYPE_32FC1);
-
-      // Convert 32FC1 image to CV_16UC1
-      cv_ptr_depth->image.convertTo(cv_ptr_depth->image, CV_16UC1);
-
-      uint16_t pix_value = cv_ptr_depth->image.at<uint16_t>(tag_x_,tag_y_);
-      RCLCPP_INFO(this->get_logger(), "Detected depth : %d at location: (%d, %d) , image id: %s", pix_value,tag_x_, tag_y_,  std::to_string(depth_msg->header.stamp.sec).c_str());
-
-    } else {
-      // std::string filename_rgb = "data/depth/" + std::to_string(depth_msg->header.stamp.sec) + ".png";
     }
 
     // Inner try-catch
   } catch (const std::invalid_argument & e) {
-    std::cerr << "Invalid argument in inner try: " << e.what() << std::endl;
+    RCLCPP_ERROR(this->get_logger(), "Invalid argument in inner try: %s " ,e.what() );
     throw;
   }
-
-  // // Save the image as PNG
-  // std::string filename_depth = "data/depth/" + std::to_string(depth_msg->header.stamp.sec) + ".png";
-  // cv::imwrite(filename_depth, cv_ptr_depth->image);
-
 }
 
-void PoseEstimator::appendVectorsToCSV(const std::string& filename, std::vector<double> data) {
-    std::ofstream file(filename, std::ios::app); // Open in append mode
-
-    if (!file.is_open()) {
-        std::cerr << "Error opening file: " << filename << std::endl;
-        return;
+void PoseEstimator::get_pose(
+  const std::shared_ptr<pdf_beamtime_interfaces::srv::EstimatedPoseMsg::Request> request,
+  std::shared_ptr<pdf_beamtime_interfaces::srv::EstimatedPoseMsg::Response> response)
+  {
+    for (size_t i = 0; i < median_filtered_rpy.size(); ++i) {
+      response->pose[i] = median_filtered_rpy[i];
     }
-    file << data[0] ; file << ","; 
-    file << data[1] ; file << ",";     
-    file << data[2] ; file << ",";     
-    file << data[3] ; file << ",";     
-    file << data[4] ; file << ",";     
-    file << data[5] ; file << "\n";
-
-    file.close();
-}
+  }
 
 
 int main(int argc, char ** argv)

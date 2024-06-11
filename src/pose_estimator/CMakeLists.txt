@@ -18,9 +18,7 @@ find_package(message_filters REQUIRED)
 find_package(eigen3_cmake_module REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(filters REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
+find_package(pdf_beamtime_interfaces REQUIRED)
 
 set(dependencies
   rclcpp
@@ -33,11 +31,12 @@ set(dependencies
   eigen3_cmake_module
   Eigen3
   filters
+  pdf_beamtime_interfaces
 )
 
 include_directories(include)  # This makes sure the libraries are visible
 
-add_executable(pose_estimator src/kalman_filter.cpp src/pose_estimator.cpp)
+add_executable(pose_estimator src/pose_estimator.cpp)
 ament_target_dependencies(pose_estimator ${dependencies})
 
 install(TARGETS
