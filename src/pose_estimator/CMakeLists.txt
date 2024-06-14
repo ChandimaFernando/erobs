@@ -18,6 +18,9 @@ find_package(message_filters REQUIRED)
 find_package(eigen3_cmake_module REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(filters REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(geometry_msgs REQUIRED)
 find_package(pdf_beamtime_interfaces REQUIRED)
 
 set(dependencies
@@ -31,6 +34,9 @@ set(dependencies
   eigen3_cmake_module
   Eigen3
   filters
+  tf2_ros  
+  tf2
+  geometry_msgs
   pdf_beamtime_interfaces
 )
 

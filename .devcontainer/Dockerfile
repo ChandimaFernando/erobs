@@ -20,7 +20,7 @@ RUN apt-get update \
         libeigen3-dev \
         ros-${ROS_DISTRO}-cv-bridge \
         ros-${ROS_DISTRO}-image-transport \
-        apt-get install ros-${ROS_DISTRO}-image-pipeline \
+        ros-${ROS_DISTRO}-image-pipeline \
         #
         # Clean up
         && apt-get autoremove -y \

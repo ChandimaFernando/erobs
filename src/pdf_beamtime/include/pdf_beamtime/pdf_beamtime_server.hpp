@@ -24,6 +24,7 @@ BSD 3 Clause License. See LICENSE.txt for details.*/
 #include <pdf_beamtime_interfaces/srv/box_obstacle_msg.hpp>
 #include <pdf_beamtime_interfaces/srv/cylinder_obstacle_msg.hpp>
 #include <pdf_beamtime_interfaces/srv/bluesky_interrupt_msg.hpp>
+#include <pdf_beamtime_interfaces/srv/estimated_pose_msg.hpp>
 #include <pdf_beamtime/inner_state_machine.hpp>
 #include <pdf_beamtime/state_enum.hpp>
 
@@ -37,6 +38,7 @@ public:
   using UpdateObstaclesMsg = pdf_beamtime_interfaces::srv::UpdateObstacleMsg;
   using DeleteObstacleMsg = pdf_beamtime_interfaces::srv::DeleteObstacleMsg;
   using BlueskyInterruptMsg = pdf_beamtime_interfaces::srv::BlueskyInterruptMsg;
+  using EstimatedPoseMsg = pdf_beamtime_interfaces::srv::EstimatedPoseMsg;
 
   explicit PdfBeamtimeServer(
     const std::string & move_group_name, const rclcpp::NodeOptions & options,
@@ -59,6 +61,9 @@ private:
   rclcpp::Service<UpdateObstaclesMsg>::SharedPtr update_obstacles_service_;
   rclcpp::Service<DeleteObstacleMsg>::SharedPtr remove_obstacles_service_;
   rclcpp::Service<BlueskyInterruptMsg>::SharedPtr bluesky_interrupt_service_;
+
+  /// @brief client to get pose from pose_estimator node
+  rclcpp::Client<EstimatedPoseMsg>::SharedPtr pose_estimator_client_;
 
   /// @brief Pointer to the action server
   rclcpp_action::Server<PickPlaceControlMsg>::SharedPtr action_server_;
@@ -172,6 +177,8 @@ private:
 
   /// @brief change the current state here
   void set_current_state(State state);
+
+  std::vector<double> get_estimated_pose();
 };
 
 #endif  // PDF_BEAMTIME__PDF_BEAMTIME_SERVER_HPP_

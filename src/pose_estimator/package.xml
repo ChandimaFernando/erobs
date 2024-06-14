@@ -17,6 +17,9 @@
   <build_depend>eigen3_cmake_module</build_depend>
   <build_depend>Eigen3</build_depend>
    <build_depend>filters</build_depend>
+   <build_depend>tf2_ros</build_depend>
+   <build_depend>tf2</build_depend>
+   <build_depend>geometry_msgs</build_depend>
    <build_depend> pdf_beamtime_interfaces</build_depend>
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

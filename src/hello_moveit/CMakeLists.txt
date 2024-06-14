@@ -13,6 +13,10 @@ find_package(hello_moveit_interfaces REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(yaml-cpp REQUIRED)
+find_package(pdf_beamtime_interfaces REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2 REQUIRED)
 
 
 set(dependencies
@@ -22,6 +26,10 @@ set(dependencies
   rclcpp_action
   rclcpp_components
   yaml-cpp
+  pdf_beamtime_interfaces
+  geometry_msgs
+  tf2_ros
+  tf2
 )
 
 # Comment out the Plugin components and revert to spinning the node in main.
@@ -48,7 +56,11 @@ ament_target_dependencies( pose_subscriber ${dependencies})
 add_executable(parameter_demo src/parameter_demo.cpp)
 ament_target_dependencies(parameter_demo ${dependencies})
 
+add_executable(move_to_pose src/move_to_pose.cpp)
+ament_target_dependencies(move_to_pose ${dependencies})
+
 install(TARGETS
+  move_to_pose
   hello_moveit
   parameter_demo
   pose_subscriber

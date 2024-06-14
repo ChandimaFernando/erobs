@@ -48,6 +48,9 @@ PdfBeamtimeServer::PdfBeamtimeServer(
     std::bind(&PdfBeamtimeServer::handle_cancel, this, _1),
     std::bind(&PdfBeamtimeServer::handle_accepted, this, _1));
 
+  // Create a client for pose estimator
+  pose_estimator_client_ = node_->create_client<EstimatedPoseMsg>("get_pose");
+
   // Initialize to home
   current_state_ = State::HOME;
   gripper_present_ = node_->get_parameter("gripper_present").as_bool();
@@ -624,6 +627,20 @@ void PdfBeamtimeServer::set_current_state(State state)
     external_state_names_[static_cast<int>(current_state_)].c_str(),
     external_state_names_[static_cast<int>(state)].c_str());
   current_state_ = state;
+}
+
+std::vector<double> PdfBeamtimeServer::get_estimated_pose()
+{
+  // while (!pose_estimator_client_->wait_for_service(std::chrono::seconds(2))) {
+  //   if (!rclcpp::ok()) {
+  //     RCLCPP_ERROR(node_->get_logger(), "Interrupted while waiting for the service. Exiting.");
+  //     break;
+  //   }
+  //   RCLCPP_INFO(
+  //     rclcpp::get_logger(
+  //       "rclcpp"), "Waiting for the pose estimator service to appear...");
+  // }
+  // auto request = std::make_shared<EstimatedPoseMsg::Request>();
 }
 
 int main(int argc, char * argv[])
