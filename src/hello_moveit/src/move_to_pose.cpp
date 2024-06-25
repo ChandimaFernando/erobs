@@ -1,6 +1,8 @@
 /*Copyright 2023 Brookhaven National Laboratory
 BSD 3 Clause License. See LICENSE.txt for details.*/
 #include <moveit/move_group_interface/move_group_interface.h>
+#include <moveit/planning_scene_interface/planning_scene_interface.h>
+
 #include <moveit_msgs/msg/constraints.hpp>
 #include <moveit_msgs/msg/joint_constraint.hpp>
 #include <pdf_beamtime_interfaces/srv/estimated_pose_msg.hpp>
@@ -9,6 +11,8 @@ BSD 3 Clause License. See LICENSE.txt for details.*/
 #include <tf2_ros/transform_listener.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Matrix3x3.h>
+#include <shape_msgs/msg/solid_primitive.hpp>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 #include <memory>
 #include <chrono>
@@ -52,50 +56,16 @@ int main(int argc, char * argv[])
     RCLCPP_INFO(logger, "move_group service not available, waiting again...");
   }
 
-  // Create a client for pose estimator
-  auto pose_estimator_client_ =
-    parameter_client_node->create_client<pdf_beamtime_interfaces::srv::EstimatedPoseMsg>(
-    "pose_service");
-
-  auto request = std::make_shared<pdf_beamtime_interfaces::srv::EstimatedPoseMsg::Request>();
-  request->a = 1.0;
-
-
-  while (!pose_estimator_client_->wait_for_service(1s)) {
-    if (!rclcpp::ok()) {
-      RCLCPP_ERROR(
-        rclcpp::get_logger(
-          "rclcpp"), "Interrupted while waiting for the service. Exiting.");
-      return 0;
-    }
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available, waiting again...");
-  }
-
-  std::vector<double> estimated_pose = {};
-
-  auto result = pose_estimator_client_->async_send_request(request);
-  // Wait for the result.
-  if (rclcpp::spin_until_future_complete(parameter_client_node, result) ==
-    rclcpp::FutureReturnCode::SUCCESS)
-  {
-    auto results = result.get()->pose;
-    for (const auto & elem : results) {
-      estimated_pose.push_back(elem);
-    }
-  } else {
-    RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service pose estimator");
-  }
-
   // Get robot config parameters from parameter server
   auto parameters = parent_parameters_client->get_parameters(
     {"robot_description_semantic",
       "robot_description"});
 
-  // create the Node for moveit with
-  // auto const node = std::make_shared<rclcpp::Node>(
-  //   "hello_moveit",
-  //   rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)
-  // );
+  // We spin up a SingleThreadedExecutor for the current state monitor to get
+  // information about the robot's state.
+  rclcpp::executors::SingleThreadedExecutor executor;
+  executor.add_node(parameter_client_node);
+  auto spinner = std::thread([&executor]() {executor.spin();});
 
   std::string parameter_value = parameters[0].value_to_string();
   parameter_client_node->declare_parameter<std::string>(
@@ -109,10 +79,66 @@ int main(int argc, char * argv[])
   RCLCPP_INFO(logger, "assembling move_group_interface");
   using moveit::planning_interface::MoveGroupInterface;
   auto move_group_interface = MoveGroupInterface(parameter_client_node, "ur_arm");
+  move_group_interface.setEndEffectorLink("wrist_3_link");
 
-  // std::vector<double> joint_goal_degrees =
-  // {121.84, -162.0, -28.15, estimated_pose[4], estimated_pose[5], estimated_pose[3]};
-  std::vector<double> joint_goal_degrees = {158.66, -123.69, -89, -140.46, 34, 351.0};
+// Initialize the planning scene interface
+  std::shared_ptr<moveit::planning_interface::PlanningSceneInterface> planning_scene_interface_ =
+    std::make_shared<moveit::planning_interface::PlanningSceneInterface>();
+
+  // Define the collision object (box)
+  std::vector<moveit_msgs::msg::CollisionObject> all_obstacles;
+
+  moveit_msgs::msg::CollisionObject collision_object;
+  collision_object.header.frame_id = "world";
+  collision_object.id = "box1";
+
+  // Define the shape and size of the box
+  shape_msgs::msg::SolidPrimitive primitive;
+  primitive.type = primitive.BOX;
+  primitive.dimensions.resize(3);
+  primitive.dimensions[0] = 2;    // x
+  primitive.dimensions[1] = 2;    // y
+  primitive.dimensions[2] = 0.01;    // z
+
+  // Define the pose of the box (relative to the frame_id)
+  geometry_msgs::msg::Pose box_pose;
+  box_pose.orientation.w = 1.0;
+  box_pose.position.x = 0.0;
+  box_pose.position.y = 0.0;
+  box_pose.position.z = -0.02;
+
+  // Add the primitive and pose to the collision object
+  collision_object.primitives.push_back(primitive);
+  collision_object.primitive_poses.push_back(box_pose);
+
+  // Add the collision object to the planning scene
+  all_obstacles.push_back(collision_object);
+
+  moveit_msgs::msg::CollisionObject sample;
+  sample.header.frame_id = "world";
+  sample.id = "sample";
+
+  // Define the shape and size of the box
+  shape_msgs::msg::SolidPrimitive primitive_sample;
+
+  primitive_sample.type = primitive.BOX;
+  primitive_sample.dimensions.resize(3);
+  primitive_sample.dimensions[0] = 0.01;    // x
+  primitive_sample.dimensions[1] = 0.02;    // y
+  primitive_sample.dimensions[2] = 0.1;    // z
+
+  // Add the primitive and pose to the collision object
+  sample.primitives.push_back(primitive_sample);
+  // sample.primitive_poses.push_back(box_pose_sample);
+
+  all_obstacles.push_back(sample);
+
+  // Add the collision object to the planning scene
+  planning_scene_interface_->applyCollisionObjects(all_obstacles);
+
+  // #######################
+
+  std::vector<double> joint_goal_degrees = {151.59, -130.5, -82.82, -145.60, -27.71, 359.40};
 
   // Vector to hold the converted angles in radians
   std::vector<double> joint_goal_radians(joint_goal_degrees.size());
@@ -121,7 +147,6 @@ int main(int argc, char * argv[])
   std::transform(
     joint_goal_degrees.begin(), joint_goal_degrees.end(),
     joint_goal_radians.begin(), degreesToRadians);
-
 
   move_group_interface.setJointValueTarget(joint_goal_radians);
   // Create a plan to that target pose
@@ -135,245 +160,190 @@ int main(int argc, char * argv[])
     move_group_interface.execute(plan);
   }
 
-  std::this_thread::sleep_for(std::chrono::seconds(3));
+  std::this_thread::sleep_for(std::chrono::seconds(2));
 
-  // std::shared_ptr<tf2_ros::Buffer> tf_buffer_ =
-  //   std::make_shared<tf2_ros::Buffer>(parameter_client_node->get_clock());
-  // std::shared_ptr<tf2_ros::TransformListener> tf_listener_ =
-  //   std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+  // get tranformations
 
-  // std::string wrist_3_frame = "wrist_3_link";
-  // std::string wrist_2_frame = "wrist_2_link";
+  // TF2 buffer and listener
+  tf2_ros::Buffer tf_buffer(parameter_client_node->get_clock());
+  tf2_ros::TransformListener tf_listener(tf_buffer);
 
-  // std::string target_frame = "sample";
+  // Lookup the transformation between two links
+  std::string world_frame = "world";
+  std::string to_sample = "sample_1";
+  std::string to_wrist = "wrist_3_link";
+  std::string to_wrist_2 = "wrist_2_link";
 
-  // // Lookup the transform
-  // geometry_msgs::msg::TransformStamped transform_wrist_3_sample = tf_buffer_->lookupTransform(
-  //   wrist_3_frame,
-  //   target_frame,
-  //   tf2::TimePointZero);
+  geometry_msgs::msg::TransformStamped transform_world_to_sample;
+  geometry_msgs::msg::TransformStamped transform_world_to_wrist_3;
+  geometry_msgs::msg::TransformStamped transform_world_to_wrist_2;
 
-  // geometry_msgs::msg::TransformStamped transform_wrist_2_sample = tf_buffer_->lookupTransform(
-  //   wrist_2_frame,
-  //   target_frame,
-  //   tf2::TimePointZero);
+  double x_dist, y_dist, z_dist;
+  double wrist_2_roll, wrist_2_pitch, wrist_2_yaw;
+  double sample_roll, sample_pitch, sample_yaw;
 
-  // // Convert quaternion to RPY
+  while (rclcpp::ok()) {
+    try {
+      transform_world_to_sample =
+        tf_buffer.lookupTransform(world_frame, to_sample, tf2::TimePointZero);
+      transform_world_to_wrist_3 =
+        tf_buffer.lookupTransform(world_frame, to_wrist, tf2::TimePointZero);
+      transform_world_to_wrist_2 =
+        tf_buffer.lookupTransform(world_frame, to_wrist_2, tf2::TimePointZero);
 
-  // tf2::Quaternion wrist_2_quat(transform_wrist_2_sample.transform.rotation.x,
-  //   transform_wrist_2_sample.transform.rotation.y, transform_wrist_2_sample.transform.rotation.z,
-  //   transform_wrist_2_sample.transform.rotation.w);
+      x_dist = transform_world_to_sample.transform.translation.x -
+        transform_world_to_wrist_3.transform.translation.x;
+      y_dist = transform_world_to_sample.transform.translation.y -
+        transform_world_to_wrist_3.transform.translation.y;
+      z_dist = transform_world_to_sample.transform.translation.z -
+        transform_world_to_wrist_3.transform.translation.z;
 
-  // double roll, pitch, yaw;
-  // tf2::Matrix3x3(wrist_2_quat).getRPY(roll, pitch, yaw);
+      geometry_msgs::msg::Quaternion wrist_2_qutornian =
+        transform_world_to_wrist_2.transform.rotation;
 
+      tf2::Quaternion tf2_wrist_2_quaternion;
+      tf2::Quaternion tf2_sample_quaternion;
 
-  // RCLCPP_INFO(
-  //   parameter_client_node->get_logger(), "Translation: [%f, %f, %f]",
-  //   transform_wrist_3_sample.transform.translation.x,
-  //   transform_wrist_3_sample.transform.translation.y,
-  //   transform_wrist_3_sample.transform.translation.z);
+      tf2::fromMsg(wrist_2_qutornian, tf2_wrist_2_quaternion);
+      tf2::fromMsg(transform_world_to_sample.transform.rotation, tf2_sample_quaternion);
 
-  // RCLCPP_INFO(
-  //   parameter_client_node->get_logger(), "Wrist 2 RPY to sample: [%f, %f, %f]", roll, pitch, yaw);
+      // Convert tf2::Quaternion to RPY
+      tf2::Matrix3x3(tf2_wrist_2_quaternion).getRPY(wrist_2_roll, wrist_2_pitch, wrist_2_yaw);
+      tf2::Matrix3x3(tf2_sample_quaternion).getRPY(sample_roll, sample_pitch, sample_yaw);
 
-  // Get the current state of the robot
-  // moveit::core::RobotStatePtr current_state = move_group_interface.getCurrentState();
+      RCLCPP_INFO(
+        logger,
+        "Transform from %s to %s:\nTranslation: [%.2f, %.2f, %.2f] \nDesired Rotation: [%.2f, %.2f, %.2f]",
+        to_wrist.c_str(), to_sample.c_str(),
+        x_dist, y_dist, z_dist,
+        wrist_2_roll / 180 * M_PI, wrist_2_pitch / 180 * M_PI, wrist_2_yaw / 180 * M_PI);
 
-  // Create joint constraint
-  moveit_msgs::msg::JointConstraint joint_constraint;
-  joint_constraint.joint_name = "joint_1";       // replace with your joint name
-  joint_constraint.position = estimated_pose[4] * M_PI / 180.0;              // desired position in radians
-  joint_constraint.tolerance_above = 0.1;
-  joint_constraint.tolerance_below = 0.1;
-  joint_constraint.weight = 1.0;
+      break;
+    } catch (tf2::TransformException & ex) {
+      RCLCPP_ERROR(
+        logger, "Could not transform %s to %s: %s", to_wrist.c_str(),
+        to_sample.c_str(), ex.what());
+    }
+  }
 
-  // Create constraints message
-  moveit_msgs::msg::Constraints path_constraints;
-  // path_constraints.joint_constraints.push_back(joint_constraint);
+  // Get current joint values
+  std::vector<double> joint_group_positions;
+  move_group_interface.getCurrentState()->copyJointGroupPositions(
+    move_group_interface.getCurrentState()->getRobotModel()->getJointModelGroup("ur_arm"),
+    joint_group_positions
+  );
 
-  moveit_msgs::msg::JointConstraint joint_2_constraint;
-  joint_2_constraint.joint_name = "joint_2";       // replace with your joint name
-  joint_2_constraint.position = estimated_pose[5] * M_PI / 180.0;              // desired position in radians
-  joint_2_constraint.tolerance_above = 0.1;
-  joint_2_constraint.tolerance_below = 0.1;
-  joint_2_constraint.weight = 1.0;
-  // path_constraints.joint_constraints.push_back(joint_2_constraint);
+  joint_group_positions[4] = joint_group_positions[4] + wrist_2_yaw - sample_yaw;
 
-
-  RCLCPP_INFO(
-    logger, "received pose RPY XYZ: %f %f %f  \t %f %f %f ", estimated_pose[0],
-    estimated_pose[1], estimated_pose[2], estimated_pose[3],
-    estimated_pose[4], estimated_pose[5]);
-
-  // Set the path constraints to the move group
-  move_group_interface.setPathConstraints(path_constraints);
-
-  // // // geometry_msgs::msg::PoseStamped current_pose = move_group_interface.getCurrentPose();
-  // Set a target Pose
-  auto const target_pose = [estimated_pose] {
-      geometry_msgs::msg::Pose msg;
-      msg.position.x = estimated_pose[3];     // camera xyz from aruco is different from robot's
-      msg.position.y = estimated_pose[4];
-      msg.position.z = estimated_pose[5];
-
-      tf2::Quaternion quaternion;
-      quaternion.setRPY(estimated_pose[0], estimated_pose[1], estimated_pose[2]);
-      msg.orientation.x = quaternion.x();
-      msg.orientation.y = quaternion.y();
-      msg.orientation.z = quaternion.z();
-      msg.orientation.w = quaternion.w();
-
-      return msg;
-    }();
-  move_group_interface.setPoseTarget(target_pose);
-
+  move_group_interface.setJointValueTarget(joint_group_positions);
   // Create a plan to that target pose
-  auto const [success, plan_cart] = [&move_group_interface] {
+  auto const [planing_success3, plan3] = [&move_group_interface] {
       moveit::planning_interface::MoveGroupInterface::Plan msg;
       auto const ok = static_cast<bool>(move_group_interface.plan(msg));
       return std::make_pair(ok, msg);
     }();
-
-  // Execute the plan
-  if (success) {
-    // move_group_interface.execute(plan_cart);
-  } else {
-    RCLCPP_ERROR(logger, "Planning failed!");
+  if (planing_success3) {
+    move_group_interface.execute(plan3);
   }
+
+
+  while (rclcpp::ok()) {
+    try {
+      transform_world_to_sample =
+        tf_buffer.lookupTransform(world_frame, to_sample, tf2::TimePointZero);
+      transform_world_to_wrist_3 =
+        tf_buffer.lookupTransform(world_frame, to_wrist, tf2::TimePointZero);
+
+      x_dist = transform_world_to_sample.transform.translation.x -
+        transform_world_to_wrist_3.transform.translation.x;
+      y_dist = transform_world_to_sample.transform.translation.y -
+        transform_world_to_wrist_3.transform.translation.y;
+      z_dist = transform_world_to_sample.transform.translation.z -
+        transform_world_to_wrist_3.transform.translation.z - 0.01; // 0.1 is an offset to grab low
+
+      break;
+    } catch (tf2::TransformException & ex) {
+      RCLCPP_ERROR(
+        logger, "Could not transform %s to %s: %s", to_wrist.c_str(),
+        to_sample.c_str(), ex.what());
+    }
+  }
+
+  geometry_msgs::msg::PoseStamped current_pose_after_direction =
+    move_group_interface.getCurrentPose();
+
+  // Define waypoints for Cartesian path
+  std::vector<geometry_msgs::msg::Pose> waypoints;
+
+  geometry_msgs::msg::Pose target_pose = current_pose_after_direction.pose;
+
+  // Move 10 cm up in the z direction
+  target_pose.position.z += z_dist;
+
+  waypoints.push_back(target_pose);
+
+  // Plan the Cartesian path
+  moveit::planning_interface::MoveGroupInterface::Plan cartesian_plan;
+  double fraction = move_group_interface.computeCartesianPath(
+    waypoints, 0.01, 0.0,
+    cartesian_plan.trajectory_);
+
+  if (fraction > 0.95) {
+    RCLCPP_INFO(
+      logger, "Cartesian path (%.2f%% acheived), moving the arm", fraction * 100.0);
+    move_group_interface.execute(cartesian_plan);
+  } else {
+    RCLCPP_WARN(logger, "Cartesian path planning failed with %.2f%%", fraction * 100.0);
+  }
+
+  double theta = atan(abs(y_dist) / abs(x_dist));
+  double gripper_length = 0.125;
+
+  RCLCPP_INFO(
+    logger, "before x_dist :%f   y_dist: %f   theta: %f", x_dist, y_dist, theta / M_PI * 180);
+
+  RCLCPP_INFO(
+    logger, "gripper_length * cos(theta) :%f   gripper_length * sin(theta): %f", gripper_length * cos(
+      theta), gripper_length * sin(theta));
+
+
+  if (x_dist > 0) {
+    x_dist = x_dist - gripper_length * cos(theta);
+  } else {
+    x_dist = x_dist + gripper_length * cos(theta);
+  }
+
+  if (y_dist > 0) {
+    y_dist = y_dist - gripper_length * sin(theta);
+  } else {
+    y_dist = y_dist + gripper_length * sin(theta);
+
+  }
+  RCLCPP_INFO(
+    logger, "after x_dist :%f   y_dist: %f ", x_dist, y_dist);
+
+
+  target_pose.position.x += x_dist;
+  target_pose.position.y += y_dist;
+
+  waypoints.clear();
+  waypoints.push_back(target_pose);
+
+  // Plan the Cartesian path
+  fraction = move_group_interface.computeCartesianPath(
+    waypoints, 0.01, 0.0,
+    cartesian_plan.trajectory_);
+
+  if (fraction > 0.50) {
+    RCLCPP_INFO(
+      logger, "Cartesian path (%.2f%% acheived), moving the arm", fraction * 100.0);
+    // move_group_interface.execute(cartesian_plan);
+  } else {
+    RCLCPP_WARN(logger, "Cartesian path planning failed with %.2f%%", fraction * 100.0);
+  }
+
 
   // Shutdown ROS
   rclcpp::shutdown();
   return 0;
 }
-
-/*
-#include <moveit/move_group_interface/move_group_interface.h>
-#include <moveit/planning_scene_interface/planning_scene_interface.h>
-
-#include <chrono>
-#include <fstream>
-#include <iostream>
-#include <functional>
-#include <memory>
-#include <thread>
-#include <string>
-#include <map>
-#include <vector>
-#include <cmath>
-#include <rclcpp/rclcpp.hpp>
-#include <rclcpp_action/rclcpp_action.hpp>
-
-/// @brief Create the obstacle environment and an simple action server for the robot to move
-class MoveToPose
-{
-public:
-  explicit MoveToPose(
-    const std::string & move_group_name, const rclcpp::NodeOptions & options,
-    std::string action_name);
-  rclcpp::node_interfaces::NodeBaseInterface::SharedPtr getNodeBaseInterface();
-  rclcpp::node_interfaces::NodeBaseInterface::SharedPtr getInterruptNodeBaseInterface();
-
-private:
-  rclcpp::Node::SharedPtr node_;
-  rclcpp::Node::SharedPtr interrupt_node_;
-
-  moveit::planning_interface::MoveGroupInterface move_group_interface_;
-
-  moveit::planning_interface::PlanningSceneInterface planning_scene_interface_;
-
-  /// @brief records home state
-  std::vector<double, std::allocator<double>> goal_home_;
-
-};
-
-using moveit::planning_interface::MoveGroupInterface;
-using namespace std::placeholders;
-
-MoveToPose::MoveToPose(
-  const std::string & move_group_name = "ur_manipulator",
-  const rclcpp::NodeOptions & options = rclcpp::NodeOptions(),
-  std::string action_name = "pdf_beamtime_action_server")
-: node_(std::make_shared<rclcpp::Node>("pdf_beamtime_server", options)),
-  interrupt_node_(std::make_shared<rclcpp::Node>("interrupt_server")),
-  move_group_interface_(node_, move_group_name),
-  planning_scene_interface_()
-{
-
-  std::vector<double> joint_goal = {-0.11536, -1.783732, 0.38816, -1.75492, 0.11484, 3.14159};
-  move_group_interface_.setJointValueTarget(joint_goal);
-  // Create a plan to that target pose
-
-  moveit::planning_interface::MoveGroupInterface::Plan msg;
-  auto const ok = static_cast<bool>(move_group_interface_.plan(msg));
-
-  if (ok) {
-    move_group_interface_.execute(msg);
-  }
-
-}
-
-
-rclcpp::node_interfaces::NodeBaseInterface::SharedPtr MoveToPose::getNodeBaseInterface()
-// Expose the node base interface so that the node can be added to a component manager.
-{
-  return node_->get_node_base_interface();
-}
-
-rclcpp::node_interfaces::NodeBaseInterface::SharedPtr MoveToPose::getInterruptNodeBaseInterface()
-// Expose the node base interface of the bluesky interrupt node
-// so that the node can be added to a component manager.
-{
-  return interrupt_node_->get_node_base_interface();
-}
-
-
-int main(int argc, char * argv[])
-{
-  rclcpp::init(argc, argv);
-
-  // Create a ROS logger for main scope
-  auto const logger = rclcpp::get_logger("hello_moveit");
-  using namespace std::chrono_literals;
-
-  // Create a node for synchronously grabbing params
-  auto parameter_client_node = rclcpp::Node::make_shared("param_client");
-  auto parent_parameters_client =
-    std::make_shared<rclcpp::SyncParametersClient>(parameter_client_node, "move_group");
-  // Boiler plate wait block
-  while (!parent_parameters_client->wait_for_service(1s)) {
-    if (!rclcpp::ok()) {
-      RCLCPP_ERROR(
-        logger, "Interrupted while waiting for the service. Exiting.");
-      return 0;
-    }
-    RCLCPP_INFO(logger, "move_group service not available, waiting again...");
-  }
-  // Get robot config parameters from parameter server
-  auto parameters = parent_parameters_client->get_parameters(
-    {"robot_description_semantic",
-      "robot_description"});
-
-  // Set node parameters using NodeOptions
-  rclcpp::NodeOptions node_options;
-  node_options.automatically_declare_parameters_from_overrides(true);
-  node_options.parameter_overrides(
-  {
-    {"robot_description_semantic", parameters[0].value_to_string()},
-    {"robot_description", parameters[1].value_to_string()}
-  });
-
-  rclcpp::executors::MultiThreadedExecutor executor;
-
-  auto beamtime_server = std::make_shared<MoveToPose>(
-    "ur_arm",
-    node_options);
-
-  executor.add_node(beamtime_server->getNodeBaseInterface());
-  executor.add_node(beamtime_server->getInterruptNodeBaseInterface());
-  executor.spin();
-
-  rclcpp::shutdown();
-  return 0;
-}
-*/
