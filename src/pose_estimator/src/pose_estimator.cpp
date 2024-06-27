@@ -23,9 +23,9 @@ PoseEstimator::PoseEstimator()
   transformStamped.header.stamp = this->now();
   transformStamped.header.frame_id = "world";
   transformStamped.child_frame_id = "camera_base";
-  transformStamped.transform.translation.x = 0.51;  //0.516;
-  transformStamped.transform.translation.y = -0.675; //-0.675;
-  transformStamped.transform.translation.z = 0.263;
+  transformStamped.transform.translation.x = 0.549;  //0.516;
+  transformStamped.transform.translation.y = -0.392; //-0.675;
+  transformStamped.transform.translation.z = 0.08;
   transformStamped.transform.rotation.x = camera_qua.x();
   transformStamped.transform.rotation.y = camera_qua.y();
   transformStamped.transform.rotation.z = camera_qua.z();
@@ -38,15 +38,13 @@ PoseEstimator::PoseEstimator()
     std::bind(
       &PoseEstimator::get_pose, this, std::placeholders::_1, std::placeholders::_2));
 
-  subscription_rgb_.subscribe(this, "/rgb/image_raw");
-  subscription_depth_.subscribe(this, "/depth_to_rgb/image_raw");
+  subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
+    "/rgb/image_raw", 5,
+    std::bind(&PoseEstimator::image_raw_callback, this, std::placeholders::_1));
 
-  // Synchronize messages from the two topics
-  sync_ =
-    std::make_shared<message_filters::Synchronizer<sync_policy>>(
-    sync_policy(
-      5), subscription_rgb_, subscription_depth_);
-  sync_->registerCallback(&PoseEstimator::image_raw_callback, this);
+  // subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
+  //   "/image_rect", 5,
+  //   std::bind(&PoseEstimator::image_raw_callback, this, std::placeholders::_1));
 
   // Assign parameters for ArUco tag detection
   parameters_ = cv::aruco::DetectorParameters::create();
@@ -70,8 +68,7 @@ PoseEstimator::PoseEstimator()
 }
 
 void PoseEstimator::image_raw_callback(
-  const sensor_msgs::msg::Image::ConstSharedPtr & rgb_msg,
-  const sensor_msgs::msg::Image::ConstSharedPtr & depth_msg)
+  const sensor_msgs::msg::Image::ConstSharedPtr & rgb_msg)
 {
 
   // Convert ROS image message to cv::Mat

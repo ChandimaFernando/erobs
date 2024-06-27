@@ -137,212 +137,239 @@ int main(int argc, char * argv[])
   planning_scene_interface_->applyCollisionObjects(all_obstacles);
 
   // #######################
+  while (true) {
+    std::vector<double> joint_goal_degrees = {163.59, -130.5, -82.82, -145.60, -27.71, 359.40};
 
-  std::vector<double> joint_goal_degrees = {151.59, -130.5, -82.82, -145.60, -27.71, 359.40};
+    // Vector to hold the converted angles in radians
+    std::vector<double> joint_goal_radians(joint_goal_degrees.size());
 
-  // Vector to hold the converted angles in radians
-  std::vector<double> joint_goal_radians(joint_goal_degrees.size());
+    // Convert each element from degrees to radians using std::transform
+    std::transform(
+      joint_goal_degrees.begin(), joint_goal_degrees.end(),
+      joint_goal_radians.begin(), degreesToRadians);
 
-  // Convert each element from degrees to radians using std::transform
-  std::transform(
-    joint_goal_degrees.begin(), joint_goal_degrees.end(),
-    joint_goal_radians.begin(), degreesToRadians);
+    move_group_interface.setJointValueTarget(joint_goal_radians);
+    // Create a plan to that target pose
+    auto const [planing_success, plan] = [&move_group_interface] {
+        moveit::planning_interface::MoveGroupInterface::Plan msg;
+        auto const ok = static_cast<bool>(move_group_interface.plan(msg));
+        return std::make_pair(ok, msg);
+      }();
+    if (planing_success) {
 
-  move_group_interface.setJointValueTarget(joint_goal_radians);
-  // Create a plan to that target pose
-  auto const [planing_success, plan] = [&move_group_interface] {
-      moveit::planning_interface::MoveGroupInterface::Plan msg;
-      auto const ok = static_cast<bool>(move_group_interface.plan(msg));
-      return std::make_pair(ok, msg);
-    }();
-  if (planing_success) {
+      move_group_interface.execute(plan);
+    }
 
-    move_group_interface.execute(plan);
-  }
+    std::this_thread::sleep_for(std::chrono::seconds(5));
 
-  std::this_thread::sleep_for(std::chrono::seconds(2));
+    // get tranformations
 
-  // get tranformations
 
-  // TF2 buffer and listener
-  tf2_ros::Buffer tf_buffer(parameter_client_node->get_clock());
-  tf2_ros::TransformListener tf_listener(tf_buffer);
+    // TF2 buffer and listener
+    tf2_ros::Buffer tf_buffer(parameter_client_node->get_clock());
+    tf2_ros::TransformListener tf_listener(tf_buffer);
 
-  // Lookup the transformation between two links
-  std::string world_frame = "world";
-  std::string to_sample = "sample_1";
-  std::string to_wrist = "wrist_3_link";
-  std::string to_wrist_2 = "wrist_2_link";
+    // Lookup the transformation between two links
+    std::string world_frame = "world";
+    std::string to_sample = "sample_1";
+    std::string to_wrist = "wrist_3_link";
+    std::string to_wrist_2 = "wrist_2_link";
 
-  geometry_msgs::msg::TransformStamped transform_world_to_sample;
-  geometry_msgs::msg::TransformStamped transform_world_to_wrist_3;
-  geometry_msgs::msg::TransformStamped transform_world_to_wrist_2;
+    geometry_msgs::msg::TransformStamped transform_world_to_sample;
+    geometry_msgs::msg::TransformStamped transform_world_to_wrist_3;
+    geometry_msgs::msg::TransformStamped transform_world_to_wrist_2;
 
-  double x_dist, y_dist, z_dist;
-  double wrist_2_roll, wrist_2_pitch, wrist_2_yaw;
-  double sample_roll, sample_pitch, sample_yaw;
+    double x_dist, y_dist, z_dist;
+    double wrist_2_roll, wrist_2_pitch, wrist_2_yaw;
+    double sample_roll, sample_pitch, sample_yaw;
 
-  while (rclcpp::ok()) {
-    try {
-      transform_world_to_sample =
-        tf_buffer.lookupTransform(world_frame, to_sample, tf2::TimePointZero);
-      transform_world_to_wrist_3 =
-        tf_buffer.lookupTransform(world_frame, to_wrist, tf2::TimePointZero);
-      transform_world_to_wrist_2 =
-        tf_buffer.lookupTransform(world_frame, to_wrist_2, tf2::TimePointZero);
+    while (rclcpp::ok()) {
+      try {
+        transform_world_to_sample =
+          tf_buffer.lookupTransform(world_frame, to_sample, tf2::TimePointZero);
+        transform_world_to_wrist_3 =
+          tf_buffer.lookupTransform(world_frame, to_wrist, tf2::TimePointZero);
+        transform_world_to_wrist_2 =
+          tf_buffer.lookupTransform(world_frame, to_wrist_2, tf2::TimePointZero);
 
-      x_dist = transform_world_to_sample.transform.translation.x -
-        transform_world_to_wrist_3.transform.translation.x;
-      y_dist = transform_world_to_sample.transform.translation.y -
-        transform_world_to_wrist_3.transform.translation.y;
-      z_dist = transform_world_to_sample.transform.translation.z -
-        transform_world_to_wrist_3.transform.translation.z;
+        x_dist = transform_world_to_sample.transform.translation.x -
+          transform_world_to_wrist_3.transform.translation.x;
+        y_dist = transform_world_to_sample.transform.translation.y -
+          transform_world_to_wrist_3.transform.translation.y;
+        z_dist = transform_world_to_sample.transform.translation.z -
+          transform_world_to_wrist_3.transform.translation.z;
 
-      geometry_msgs::msg::Quaternion wrist_2_qutornian =
-        transform_world_to_wrist_2.transform.rotation;
+        geometry_msgs::msg::Quaternion wrist_2_qutornian =
+          transform_world_to_wrist_2.transform.rotation;
 
-      tf2::Quaternion tf2_wrist_2_quaternion;
-      tf2::Quaternion tf2_sample_quaternion;
+        tf2::Quaternion tf2_wrist_2_quaternion;
+        tf2::Quaternion tf2_sample_quaternion;
 
-      tf2::fromMsg(wrist_2_qutornian, tf2_wrist_2_quaternion);
-      tf2::fromMsg(transform_world_to_sample.transform.rotation, tf2_sample_quaternion);
+        tf2::fromMsg(wrist_2_qutornian, tf2_wrist_2_quaternion);
+        tf2::fromMsg(transform_world_to_sample.transform.rotation, tf2_sample_quaternion);
 
-      // Convert tf2::Quaternion to RPY
-      tf2::Matrix3x3(tf2_wrist_2_quaternion).getRPY(wrist_2_roll, wrist_2_pitch, wrist_2_yaw);
-      tf2::Matrix3x3(tf2_sample_quaternion).getRPY(sample_roll, sample_pitch, sample_yaw);
+        // Convert tf2::Quaternion to RPY
+        tf2::Matrix3x3(tf2_wrist_2_quaternion).getRPY(wrist_2_roll, wrist_2_pitch, wrist_2_yaw);
+        tf2::Matrix3x3(tf2_sample_quaternion).getRPY(sample_roll, sample_pitch, sample_yaw);
 
+        RCLCPP_INFO(
+          logger,
+          "Transform from %s to %s:\nTranslation: [%.2f, %.2f, %.2f] \nDesired Rotation: [%.2f, %.2f, %.2f]",
+          to_wrist.c_str(), to_sample.c_str(),
+          x_dist, y_dist, z_dist,
+          wrist_2_roll / 180 * M_PI, wrist_2_pitch / 180 * M_PI, wrist_2_yaw / 180 * M_PI);
+
+        break;
+      } catch (tf2::TransformException & ex) {
+        RCLCPP_ERROR(
+          logger, "Could not transform %s to %s: %s", to_wrist.c_str(),
+          to_sample.c_str(), ex.what());
+      }
+    }
+
+    // Get current joint values
+    std::vector<double> joint_group_positions;
+    move_group_interface.getCurrentState()->copyJointGroupPositions(
+      move_group_interface.getCurrentState()->getRobotModel()->getJointModelGroup("ur_arm"),
+      joint_group_positions
+    );
+
+    joint_group_positions[4] = joint_group_positions[4] + wrist_2_yaw - sample_yaw;
+
+    move_group_interface.setJointValueTarget(joint_group_positions);
+    // Create a plan to that target pose
+    auto const [planing_success3, plan3] = [&move_group_interface] {
+        moveit::planning_interface::MoveGroupInterface::Plan msg;
+        auto const ok = static_cast<bool>(move_group_interface.plan(msg));
+        return std::make_pair(ok, msg);
+      }();
+    if (planing_success3) {
+      move_group_interface.execute(plan3);
+    }
+
+
+    while (rclcpp::ok()) {
+      try {
+        transform_world_to_sample =
+          tf_buffer.lookupTransform(world_frame, to_sample, tf2::TimePointZero);
+        transform_world_to_wrist_3 =
+          tf_buffer.lookupTransform(world_frame, to_wrist, tf2::TimePointZero);
+
+        x_dist = transform_world_to_sample.transform.translation.x -
+          transform_world_to_wrist_3.transform.translation.x;
+        y_dist = transform_world_to_sample.transform.translation.y -
+          transform_world_to_wrist_3.transform.translation.y;
+        z_dist = transform_world_to_sample.transform.translation.z -
+          transform_world_to_wrist_3.transform.translation.z - 0.01; // 0.1 is an offset to grab low
+
+        break;
+      } catch (tf2::TransformException & ex) {
+        RCLCPP_ERROR(
+          logger, "Could not transform %s to %s: %s", to_wrist.c_str(),
+          to_sample.c_str(), ex.what());
+      }
+    }
+
+    geometry_msgs::msg::PoseStamped current_pose_after_direction =
+      move_group_interface.getCurrentPose();
+
+    // Define waypoints for Cartesian path
+    std::vector<geometry_msgs::msg::Pose> waypoints;
+
+    geometry_msgs::msg::Pose target_pose = current_pose_after_direction.pose;
+
+    // Move 10 cm up in the z direction
+    target_pose.position.z += z_dist;
+
+    waypoints.push_back(target_pose);
+
+    // Plan the Cartesian path
+    moveit::planning_interface::MoveGroupInterface::Plan cartesian_plan;
+    double fraction = move_group_interface.computeCartesianPath(
+      waypoints, 0.01, 0.0,
+      cartesian_plan.trajectory_);
+
+    if (fraction > 0.95) {
       RCLCPP_INFO(
-        logger,
-        "Transform from %s to %s:\nTranslation: [%.2f, %.2f, %.2f] \nDesired Rotation: [%.2f, %.2f, %.2f]",
-        to_wrist.c_str(), to_sample.c_str(),
-        x_dist, y_dist, z_dist,
-        wrist_2_roll / 180 * M_PI, wrist_2_pitch / 180 * M_PI, wrist_2_yaw / 180 * M_PI);
-
-      break;
-    } catch (tf2::TransformException & ex) {
-      RCLCPP_ERROR(
-        logger, "Could not transform %s to %s: %s", to_wrist.c_str(),
-        to_sample.c_str(), ex.what());
+        logger, "Cartesian path (%.2f%% acheived), moving the arm", fraction * 100.0);
+      move_group_interface.execute(cartesian_plan);
+    } else {
+      RCLCPP_WARN(logger, "Cartesian path planning failed with %.2f%%", fraction * 100.0);
     }
-  }
 
-  // Get current joint values
-  std::vector<double> joint_group_positions;
-  move_group_interface.getCurrentState()->copyJointGroupPositions(
-    move_group_interface.getCurrentState()->getRobotModel()->getJointModelGroup("ur_arm"),
-    joint_group_positions
-  );
+    double coupling_adj = 0.01;
 
-  joint_group_positions[4] = joint_group_positions[4] + wrist_2_yaw - sample_yaw;
-
-  move_group_interface.setJointValueTarget(joint_group_positions);
-  // Create a plan to that target pose
-  auto const [planing_success3, plan3] = [&move_group_interface] {
-      moveit::planning_interface::MoveGroupInterface::Plan msg;
-      auto const ok = static_cast<bool>(move_group_interface.plan(msg));
-      return std::make_pair(ok, msg);
-    }();
-  if (planing_success3) {
-    move_group_interface.execute(plan3);
-  }
+    // double theta;
+    // double gripper_length = 0.125;
 
 
-  while (rclcpp::ok()) {
-    try {
-      transform_world_to_sample =
-        tf_buffer.lookupTransform(world_frame, to_sample, tf2::TimePointZero);
-      transform_world_to_wrist_3 =
-        tf_buffer.lookupTransform(world_frame, to_wrist, tf2::TimePointZero);
+    // RCLCPP_INFO(
+    //   logger, "before x_dist :%f   y_dist: %f ", x_dist, y_dist);
 
-      x_dist = transform_world_to_sample.transform.translation.x -
-        transform_world_to_wrist_3.transform.translation.x;
-      y_dist = transform_world_to_sample.transform.translation.y -
-        transform_world_to_wrist_3.transform.translation.y;
-      z_dist = transform_world_to_sample.transform.translation.z -
-        transform_world_to_wrist_3.transform.translation.z - 0.01; // 0.1 is an offset to grab low
 
-      break;
-    } catch (tf2::TransformException & ex) {
-      RCLCPP_ERROR(
-        logger, "Could not transform %s to %s: %s", to_wrist.c_str(),
-        to_sample.c_str(), ex.what());
+    // if (x_dist > 0 && y_dist > 0) {
+    //   theta = atan(y_dist / x_dist);
+    //   x_dist = x_dist - gripper_length * cos(theta);
+    //   y_dist = y_dist - gripper_length * sin(theta);
+
+    //   RCLCPP_INFO(
+    //     logger, "adj - x :%f   - y: %f ", -gripper_length * cos(
+    //       theta), -gripper_length * sin(theta) );
+    // }
+
+    // if (x_dist < 0 && y_dist > 0) {
+    //   theta = atan(abs(x_dist) / y_dist);
+    //   x_dist = x_dist + gripper_length * sin(theta);
+    //   y_dist = y_dist - gripper_length * cos(theta);
+    //   RCLCPP_INFO(
+    //     logger, "adj +x :%f   - y: %f ", +gripper_length * sin(
+    //       theta), -gripper_length * cos(theta) );
+    // }
+
+    // if (x_dist > 0 && y_dist < 0) {
+    //   theta = atan(abs(y_dist) / x_dist);
+    //   x_dist = x_dist - gripper_length * sin(theta);
+    //   y_dist = y_dist + gripper_length * cos(theta);
+    //   RCLCPP_INFO(
+    //     logger, "adj -x: %f  +y: %f ", -gripper_length * sin(
+    //       theta), +gripper_length * cos(theta));
+    // }
+
+    // if (x_dist < 0 && y_dist < 0) {
+    //   theta = atan(abs(y_dist) / abs(x_dist));
+    //   x_dist = x_dist + gripper_length * cos(theta);
+    //   y_dist = y_dist + gripper_length * sin(theta);
+    //   RCLCPP_INFO(
+    //     logger, "adj + x :%f   + y: %f ", +gripper_length * cos(
+    //       theta), +gripper_length * sin(theta) );
+    // }
+
+    // RCLCPP_INFO(
+    //   logger, "after x_dist :%f   y_dist: %f  theta: %f", x_dist, y_dist,
+    //   theta / M_PI * 180);
+
+
+    target_pose.position.x += x_dist + coupling_adj;
+    target_pose.position.y += y_dist + coupling_adj;
+
+    waypoints.clear();
+    waypoints.push_back(target_pose);
+
+    // Plan the Cartesian path
+    fraction = move_group_interface.computeCartesianPath(
+      waypoints, 0.01, 0.0,
+      cartesian_plan.trajectory_);
+
+    if (fraction > 0.50) {
+      RCLCPP_INFO(
+        logger, "Cartesian path (%.2f%% acheived), moving the arm", fraction * 100.0);
+      move_group_interface.execute(cartesian_plan);
+    } else {
+      RCLCPP_WARN(logger, "Cartesian path planning failed with %.2f%%", fraction * 100.0);
     }
-  }
-
-  geometry_msgs::msg::PoseStamped current_pose_after_direction =
-    move_group_interface.getCurrentPose();
-
-  // Define waypoints for Cartesian path
-  std::vector<geometry_msgs::msg::Pose> waypoints;
-
-  geometry_msgs::msg::Pose target_pose = current_pose_after_direction.pose;
-
-  // Move 10 cm up in the z direction
-  target_pose.position.z += z_dist;
-
-  waypoints.push_back(target_pose);
-
-  // Plan the Cartesian path
-  moveit::planning_interface::MoveGroupInterface::Plan cartesian_plan;
-  double fraction = move_group_interface.computeCartesianPath(
-    waypoints, 0.01, 0.0,
-    cartesian_plan.trajectory_);
-
-  if (fraction > 0.95) {
-    RCLCPP_INFO(
-      logger, "Cartesian path (%.2f%% acheived), moving the arm", fraction * 100.0);
-    move_group_interface.execute(cartesian_plan);
-  } else {
-    RCLCPP_WARN(logger, "Cartesian path planning failed with %.2f%%", fraction * 100.0);
-  }
-
-  double theta = atan(abs(y_dist) / abs(x_dist));
-  double gripper_length = 0.125;
-
-  RCLCPP_INFO(
-    logger, "before x_dist :%f   y_dist: %f   theta: %f", x_dist, y_dist, theta / M_PI * 180);
-
-  RCLCPP_INFO(
-    logger, "gripper_length * cos(theta) :%f   gripper_length * sin(theta): %f", gripper_length * cos(
-      theta), gripper_length * sin(theta));
-
-
-  if (x_dist > 0) {
-    x_dist = x_dist - gripper_length * cos(theta);
-  } else {
-    x_dist = x_dist + gripper_length * cos(theta);
-  }
-
-  if (y_dist > 0) {
-    y_dist = y_dist - gripper_length * sin(theta);
-  } else {
-    y_dist = y_dist + gripper_length * sin(theta);
+    std::this_thread::sleep_for(std::chrono::seconds(2));
 
   }
-  RCLCPP_INFO(
-    logger, "after x_dist :%f   y_dist: %f ", x_dist, y_dist);
-
-
-  target_pose.position.x += x_dist;
-  target_pose.position.y += y_dist;
-
-  waypoints.clear();
-  waypoints.push_back(target_pose);
-
-  // Plan the Cartesian path
-  fraction = move_group_interface.computeCartesianPath(
-    waypoints, 0.01, 0.0,
-    cartesian_plan.trajectory_);
-
-  if (fraction > 0.50) {
-    RCLCPP_INFO(
-      logger, "Cartesian path (%.2f%% acheived), moving the arm", fraction * 100.0);
-    // move_group_interface.execute(cartesian_plan);
-  } else {
-    RCLCPP_WARN(logger, "Cartesian path planning failed with %.2f%%", fraction * 100.0);
-  }
-
-
   // Shutdown ROS
   rclcpp::shutdown();
   return 0;

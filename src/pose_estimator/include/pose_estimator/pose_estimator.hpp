@@ -37,14 +37,15 @@ private:
   message_filters::Subscriber<sensor_msgs::msg::Image> subscription_rgb_;
   message_filters::Subscriber<sensor_msgs::msg::Image> subscription_depth_;
 
+  rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscription_;
+
   tf2_ros::StaticTransformBroadcaster static_broadcaster_;
   tf2_ros::TransformBroadcaster tf_broadcaster_;
 
   rclcpp::Service<pdf_beamtime_interfaces::srv::EstimatedPoseMsg>::SharedPtr service;
 
   void image_raw_callback(
-    const sensor_msgs::msg::Image::ConstSharedPtr & rgb_msg,
-    const sensor_msgs::msg::Image::ConstSharedPtr & depth_msg);
+    const sensor_msgs::msg::Image::ConstSharedPtr & rgb_msg);
 
   // In OpenCV, the distortion coefficients are usually represented as a 1x5 (or sometimes 1x8) matrix:
   // distCoeffs_= [k1, k2, p1, p2, k3, k4, k5, k6] where
@@ -58,7 +59,8 @@ private:
     2.23121, 0.364764 );
 
   cv::Mat distCoeffs_ =
-    (cv::Mat_<double>(5, 1) << 0.602113, -2.92716, 0.000402061, -0.000392198, 1.63343);
+    (cv::Mat_<double>(8, 1) << 0.602113, -2.92716, 0.000402061, -0.000392198, 1.63343, 0.468872,
+    -2.72304, 1.54828);
 
   std::vector<int> markerIds_;
   std::vector<std::vector<cv::Point2f>> markerCorners_, rejectedCandidates_;
