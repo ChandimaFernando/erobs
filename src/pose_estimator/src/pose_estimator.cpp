@@ -134,6 +134,18 @@ void PoseEstimator::image_raw_callback(
       transformStamped_tag.transform.translation.z = median_filtered_rpy[5];
       transformStamped_tag.transform.rotation = toQuaternion(roll, pitch, yaw);
 
+      // Add a pre-pickup tf
+      geometry_msgs::msg::TransformStamped transformStamped_pre_pickup;
+      transformStamped_pre_pickup.header.stamp = this->now();
+      transformStamped_pre_pickup.header.frame_id = "sample_1";
+      transformStamped_pre_pickup.child_frame_id = "pre_pickup";
+
+      transformStamped_pre_pickup.transform.translation.x = 0.0;
+      transformStamped_pre_pickup.transform.translation.y = 0.0;
+      transformStamped_pre_pickup.transform.translation.z = -0.08;
+      transformStamped_pre_pickup.transform.rotation = toQuaternion(0, 0, 0);
+
+      static_broadcaster_.sendTransform(transformStamped_pre_pickup);
       static_broadcaster_.sendTransform(transformStamped_tag);
 
       RCLCPP_INFO(
