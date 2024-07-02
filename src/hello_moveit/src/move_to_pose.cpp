@@ -138,7 +138,7 @@ int main(int argc, char * argv[])
 
   // ####################### REST
   // while (true) {
-  std::vector<double> joint_goal_degrees = {167.38, -91.34, -87.46, -179.41, -24.11, 358.40};
+  std::vector<double> joint_goal_degrees = {167.38, -91.34, -87.46, -179.41, -24.11, 359.7};
 
   // Vector to hold the converted angles in radians
   std::vector<double> joint_goal_radians(joint_goal_degrees.size());
@@ -171,14 +171,20 @@ int main(int argc, char * argv[])
   // Lookup the transformation between two links
   std::string world_frame = "world";
   std::string to_sample = "sample_1";
-  std::string to_wrist = "grasping_point_link";
+  std::string grasping_point = "grasping_point_link";
   std::string to_wrist_2 = "wrist_2_link";
+  std::string pickup_approach_point = "pre_pickup";
 
   geometry_msgs::msg::TransformStamped transform_world_to_sample;
-  geometry_msgs::msg::TransformStamped transform_world_to_wrist_3;
   geometry_msgs::msg::TransformStamped transform_world_to_wrist_2;
+  geometry_msgs::msg::TransformStamped transform_world_to_grasping_point;
+  geometry_msgs::msg::TransformStamped transform_world_to_pickup_approach_point;
 
-  double x_dist, y_dist, z_dist;
+  tf2::Quaternion tf2_wrist_2_quaternion;
+  tf2::Quaternion tf2_sample_quaternion;
+
+  double x_dist_to_sample, y_dist_to_sample, z_dist_to_sample;
+  double x_dist_to_pickup_approach, y_dist_to_pickup_approach, z_dist_to_pickup_approach;
   double wrist_2_roll, wrist_2_pitch, wrist_2_yaw;
   double sample_roll, sample_pitch, sample_yaw;
 
@@ -186,37 +192,15 @@ int main(int argc, char * argv[])
     try {
       transform_world_to_sample =
         tf_buffer.lookupTransform(world_frame, to_sample, tf2::TimePointZero);
-      transform_world_to_wrist_3 =
-        tf_buffer.lookupTransform(world_frame, to_wrist, tf2::TimePointZero);
       transform_world_to_wrist_2 =
         tf_buffer.lookupTransform(world_frame, to_wrist_2, tf2::TimePointZero);
 
-      x_dist = transform_world_to_sample.transform.translation.x -
-        transform_world_to_wrist_3.transform.translation.x;
-      y_dist = transform_world_to_sample.transform.translation.y -
-        transform_world_to_wrist_3.transform.translation.y;
-      z_dist = transform_world_to_sample.transform.translation.z -
-        transform_world_to_wrist_3.transform.translation.z;
-
-      geometry_msgs::msg::Quaternion wrist_2_qutornian =
-        transform_world_to_wrist_2.transform.rotation;
-
-      tf2::Quaternion tf2_wrist_2_quaternion;
-      tf2::Quaternion tf2_sample_quaternion;
-
-      tf2::fromMsg(wrist_2_qutornian, tf2_wrist_2_quaternion);
+      tf2::fromMsg(transform_world_to_wrist_2.transform.rotation, tf2_wrist_2_quaternion);
       tf2::fromMsg(transform_world_to_sample.transform.rotation, tf2_sample_quaternion);
 
       // Convert tf2::Quaternion to RPY
       tf2::Matrix3x3(tf2_wrist_2_quaternion).getRPY(wrist_2_roll, wrist_2_pitch, wrist_2_yaw);
       tf2::Matrix3x3(tf2_sample_quaternion).getRPY(sample_roll, sample_pitch, sample_yaw);
-
-      RCLCPP_INFO(
-        logger,
-        "Transform from %s to %s:\nTranslation: [%.2f, %.2f, %.2f] \nDesired Rotation: [%.2f, %.2f, %.2f]",
-        to_wrist.c_str(), to_sample.c_str(),
-        x_dist, y_dist, z_dist,
-        wrist_2_roll / 180 * M_PI, wrist_2_pitch / 180 * M_PI, wrist_2_yaw / 180 * M_PI);
 
       break;
     } catch (tf2::TransformException & ex) {
@@ -234,6 +218,7 @@ int main(int argc, char * argv[])
   );
 
   joint_group_positions[4] = joint_group_positions[4] + wrist_2_yaw - sample_yaw;
+  joint_group_positions[5] = joint_group_positions[5] + wrist_2_pitch - sample_pitch;
 
   move_group_interface.setJointValueTarget(joint_group_positions);
   // Create a plan to that target pose
@@ -248,27 +233,58 @@ int main(int argc, char * argv[])
 
   // ####################### PICK UP APPROACH
 
-
-  // ####################### PICK UP
-
   while (rclcpp::ok()) {
     try {
-      transform_world_to_sample =
-        tf_buffer.lookupTransform(world_frame, to_sample, tf2::TimePointZero);
-      transform_world_to_wrist_3 =
-        tf_buffer.lookupTransform(world_frame, to_wrist, tf2::TimePointZero);
+      transform_world_to_sample = tf_buffer.lookupTransform(
+        world_frame,
+        to_sample,
+        tf2::TimePointZero);
 
-      x_dist = transform_world_to_sample.transform.translation.x -
-        transform_world_to_wrist_3.transform.translation.x;
-      y_dist = transform_world_to_sample.transform.translation.y -
-        transform_world_to_wrist_3.transform.translation.y;
-      z_dist = transform_world_to_sample.transform.translation.z -
-        transform_world_to_wrist_3.transform.translation.z - 0.01;   // 0.1 is an offset to grab low
+      transform_world_to_grasping_point = tf_buffer.lookupTransform(
+        world_frame,
+        grasping_point,
+        tf2::TimePointZero);
+
+      transform_world_to_pickup_approach_point = tf_buffer.lookupTransform(
+        world_frame,
+        pickup_approach_point,
+        tf2::TimePointZero);
+
+      x_dist_to_pickup_approach =
+        transform_world_to_pickup_approach_point.transform.translation.x -
+        transform_world_to_grasping_point.transform.translation.x;
+      y_dist_to_pickup_approach =
+        transform_world_to_pickup_approach_point.transform.translation.y -
+        transform_world_to_grasping_point.transform.translation.y;
+      z_dist_to_pickup_approach =
+        transform_world_to_pickup_approach_point.transform.translation.z -
+        (transform_world_to_grasping_point.transform.translation.z);   // 0.1 is an offset to grab low
+
+      RCLCPP_WARN(
+        logger,
+        "transform_world_to_pickup_approach_point.transform.translation.x: %f   transform_world_to_pickup_approach_point.transform.translation.y: %f  transform_world_to_pickup_approach_point.transform.translation.z: %f",
+        transform_world_to_pickup_approach_point.transform.translation.x,
+        transform_world_to_pickup_approach_point.transform.translation.y,
+        transform_world_to_pickup_approach_point.transform.translation.z);
+
+      RCLCPP_WARN(
+        logger,
+        "transform_world_to_grasping_point.transform.translation.x: %f   transform_world_to_grasping_point.transform.translation.y: %f  transform_world_to_grasping_point.transform.translation.z: %f",
+        transform_world_to_grasping_point.transform.translation.x,
+        transform_world_to_grasping_point.transform.translation.y,
+        transform_world_to_grasping_point.transform.translation.z);
+
+      x_dist_to_sample = transform_world_to_sample.transform.translation.x -
+        transform_world_to_pickup_approach_point.transform.translation.x;
+      y_dist_to_sample = transform_world_to_sample.transform.translation.y -
+        transform_world_to_pickup_approach_point.transform.translation.y;
+      z_dist_to_sample = transform_world_to_sample.transform.translation.z -
+        transform_world_to_pickup_approach_point.transform.translation.z;
 
       break;
     } catch (tf2::TransformException & ex) {
       RCLCPP_ERROR(
-        logger, "Could not transform %s to %s: %s", to_wrist.c_str(),
+        logger, "Could not transform %s to %s: %s", grasping_point.c_str(),
         to_sample.c_str(), ex.what());
     }
   }
@@ -282,7 +298,9 @@ int main(int argc, char * argv[])
   geometry_msgs::msg::Pose target_pose = current_pose_after_direction.pose;
 
   // Move 10 cm up in the z direction
-  target_pose.position.z += z_dist;
+  target_pose.position.z += z_dist_to_pickup_approach;
+  target_pose.position.z += -0.03;
+
 
   waypoints.push_back(target_pose);
 
@@ -300,13 +318,44 @@ int main(int argc, char * argv[])
     RCLCPP_WARN(logger, "Cartesian path planning failed with %.2f%%", fraction * 100.0);
   }
 
-  double coupling_adj = 0.0;
+  target_pose.position.x += x_dist_to_pickup_approach;
+  target_pose.position.y += y_dist_to_pickup_approach;
 
+  RCLCPP_WARN(
+    logger,
+    "x_dist_to_pickup_approach: %f   y_dist_to_pickup_approach: %f  z_dist_to_pickup_approach: %f",
+    x_dist_to_pickup_approach,
+    y_dist_to_pickup_approach,
+    z_dist_to_pickup_approach);
 
-  target_pose.position.x += x_dist + coupling_adj;
-  target_pose.position.y += y_dist + coupling_adj;
+  waypoints.clear();
+  waypoints.push_back(target_pose);
 
-  RCLCPP_WARN(logger, "x_dist: %f   y_dist: %f ", x_dist, y_dist);
+  // Plan the Cartesian path
+  fraction = move_group_interface.computeCartesianPath(
+    waypoints, 0.01, 0.0,
+    cartesian_plan.trajectory_);
+
+  if (fraction > 0.50) {
+    RCLCPP_INFO(
+      logger, "Cartesian path (%.2f%% acheived), moving the arm", fraction * 100.0);
+    move_group_interface.execute(cartesian_plan);
+  } else {
+    RCLCPP_WARN(logger, "Cartesian path planning failed with %.2f%%", fraction * 100.0);
+  }
+  std::this_thread::sleep_for(std::chrono::seconds(2));
+
+  // ####################### PICK UP
+
+  current_pose_after_direction = move_group_interface.getCurrentPose();
+  target_pose = current_pose_after_direction.pose;
+
+  target_pose.position.x += x_dist_to_sample;
+  target_pose.position.y += y_dist_to_sample;
+
+  RCLCPP_WARN(
+    logger, "x_dist_to_sample: %f   y_dist_to_sample: %f ", x_dist_to_sample,
+    y_dist_to_sample);
 
   waypoints.clear();
   waypoints.push_back(target_pose);

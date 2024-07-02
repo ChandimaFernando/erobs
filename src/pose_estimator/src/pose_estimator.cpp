@@ -129,7 +129,7 @@ void PoseEstimator::image_raw_callback(
       transformStamped_tag.header.frame_id = "camera_base";
       transformStamped_tag.child_frame_id = "sample_1";
 
-      transformStamped_tag.transform.translation.x = median_filtered_rpy[3];
+      transformStamped_tag.transform.translation.x = median_filtered_rpy[3] + 0.005;
       transformStamped_tag.transform.translation.y = median_filtered_rpy[4];
       transformStamped_tag.transform.translation.z = median_filtered_rpy[5];
       transformStamped_tag.transform.rotation = toQuaternion(roll, pitch, yaw);
@@ -142,7 +142,7 @@ void PoseEstimator::image_raw_callback(
 
       transformStamped_pre_pickup.transform.translation.x = 0.0;
       transformStamped_pre_pickup.transform.translation.y = 0.0;
-      transformStamped_pre_pickup.transform.translation.z = -0.08;
+      transformStamped_pre_pickup.transform.translation.z = 0.08;
       transformStamped_pre_pickup.transform.rotation = toQuaternion(0, 0, 0);
 
       static_broadcaster_.sendTransform(transformStamped_pre_pickup);
