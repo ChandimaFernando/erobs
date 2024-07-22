@@ -5,8 +5,8 @@
    <xacro:arg name="name" default="ur"/>
    <!-- import main macro -->
    <xacro:include filename="$(find ur_description)/urdf/ur_macro.xacro"/>
-  <xacro:include filename="$(find ur3e_hande_robot_description)/urdf/hande.xacro"/>
-  <xacro:include filename="$(find robotiq_description)/urdf/robotiq_2f_85_macro.urdf.xacro" />
+  <!-- <xacro:include filename="$(find ur3e_hande_robot_description)/urdf/hande.xacro"/> -->
+   <xacro:include filename="$(find robotiq_description)/urdf/robotiq_2f_85_macro.urdf.xacro" />
 
    <!-- possible 'ur_type' values: ur3, ur3e, ur5, ur5e, ur10, ur10e, ur16e, ur20 -->
    <!-- the default value should raise an error in case this was called without defining the type -->
@@ -108,9 +108,18 @@
      parent="world"
    /> -->
 
-    <xacro:robotiq_gripper name="RobotiqGripperHardwareInterface" prefix="" parent="world" use_fake_hardware="$(arg use_fake_hardware)">
-        <origin xyz="0 0 0" rpy="0 0 0" />
-    </xacro:robotiq_gripper>
+       <!-- attach the gripper to the arm -->
+    <!-- <joint name="$(arg tf_prefix)hande_to_wrist_flange" type="fixed">
+      <parent link="$(arg tf_prefix)flange" />
+      <child link="$(arg tf_prefix)robotiq_hande_base_link" />
+      <origin xyz="0 0 0" rpy="${pi/2.0} 0 ${pi/2.0}" />
+    </joint> -->
+
+    <xacro:robotiq_gripper 
+      name="RobotiqGripperHardwareInterface" 
+      prefix="" 
+      parent="world" 
+    /> 
 
     <!-- attach the gripper to the arm -->
     <joint name="$(arg tf_prefix)2f85_to_wrist_flange" type="fixed">
