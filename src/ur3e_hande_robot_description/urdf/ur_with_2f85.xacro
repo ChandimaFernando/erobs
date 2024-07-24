@@ -118,8 +118,9 @@
     <xacro:robotiq_gripper 
       name="RobotiqGripperHardwareInterface" 
       prefix="" 
-      parent="world" 
-    /> 
+      parent="$(arg tf_prefix)flange">
+       <origin xyz="0 0 0.004" rpy="${pi/2.0} 0 ${pi/2.0}" />
+    </xacro:robotiq_gripper>
 
     <!-- attach the gripper to the arm -->
     <joint name="$(arg tf_prefix)2f85_to_wrist_flange" type="fixed">
