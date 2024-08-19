@@ -25,10 +25,14 @@ rclcpp_action::GoalResponse PdfBeamtimeFidPoseServer::fidpose_handle_goal(
   const rclcpp_action::GoalUUID & uuid,
   std::shared_ptr<const FidPoseControlMsg::Goal> goal)
 {
+  RCLCPP_INFO(node_->get_logger(), "Goal handle inside");
   (void)uuid;
   if (goal->sample_return && !pickup_pose_saved) {
+    RCLCPP_INFO(node_->get_logger(), "Goal reject");
     return rclcpp_action::GoalResponse::REJECT;
   } else {
+    RCLCPP_INFO(node_->get_logger(), "Goal accept and execute");
+
     return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
   }
 }
@@ -119,7 +123,6 @@ void PdfBeamtimeFidPoseServer::execute(
         set_current_state(State::HOME);
         results->success = true;
         goal_handle->succeed(results);
-        pickup_pose_saved = true;
         return;
       }
     }
@@ -320,7 +323,7 @@ moveit::core::MoveItErrorCode PdfBeamtimeFidPoseServer::run_fsm(
       set_current_state(State::HOME);
       inner_state_machine_->set_internal_state(Internal_State::RESTING);
       progress_ = progress_ + 1.0;
-      pickup_pose_saved = false;
+      pickup_pose_saved = true;
       break;
 
     default:
@@ -384,7 +387,6 @@ moveit::core::MoveItErrorCode PdfBeamtimeFidPoseServer::run_return_fsm(
       break;
 
     case State::GRASP_SUCCESS:
-      // if (!goal->sample_return) {
       // Successfully grasped. Do pickup retreat to inbeam approach
       motion_results = inner_state_machine_->move_robot(
         move_group_interface_, goal->inbeam_approach);
@@ -458,7 +460,6 @@ moveit::core::MoveItErrorCode PdfBeamtimeFidPoseServer::run_return_fsm(
 
     case State::RELEASE_SUCCESS:
       // Sample was successfully released.
-      // if (!goal->sample_return) {
       motion_results = inner_state_machine_->move_robot(
         move_group_interface_,
         pre_pickup_approach_joints_);
@@ -485,6 +486,7 @@ moveit::core::MoveItErrorCode PdfBeamtimeFidPoseServer::run_return_fsm(
       set_current_state(State::HOME);
       inner_state_machine_->set_internal_state(Internal_State::RESTING);
       progress_ = progress_ + 1.0;
+      pickup_pose_saved = false;
       break;
 
     default:
