@@ -58,11 +58,11 @@ int main(int argc, char * argv[])
   auto move_group_interface = MoveGroupInterface(node, "ur_arm");
 
 
-  for (int i = 0; i < 30; i++) {
+  for (int i = 0; i < 10; i++) {
 
     RCLCPP_INFO(logger, "********* Try : %d ********", i);
 
-    std::vector target_pose = {4.089481, -0.987856, 2.167873, -1.174083, 0.899019, 3.141593};
+    std::vector target_pose = {4.089481, -0.987856, 2.167873, -1.174083, 0.899019, 0.0};
     move_group_interface.setJointValueTarget(target_pose);
 
     // Create a plan to that target pose
@@ -104,7 +104,7 @@ int main(int argc, char * argv[])
     // }
 
 
-    std::vector target_pose_2 = {-0.11536, -1.783732, 0.38816, -1.75492, 0.11484, 3.14159};
+    std::vector target_pose_2 = {0.0, -1.5708, 0.00, -1.5708, 0.0, 0.0};
     move_group_interface.setJointValueTarget(target_pose_2);
 
     // Create a plan to that target pose
