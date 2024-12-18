@@ -25,7 +25,7 @@ class SimpleClient(Node):
         goal_msg = FidPoseControlMsg.Goal()
 
         goal_msg.inbeam_approach = [x / 180 * math.pi for x in [55.10, -51.78, 124.84, -73.16, 52.24, 180.0]]
-        goal_msg.inbeam = [x / 180 * math.pi for x in [63.84, -47.71, 98.22, -50.59, 61.00, 180.0]]
+        goal_msg.inbeam = [x / 180 * math.pi for x in [63.85, -47.04, 98.27, -51.31, 61.00, 180.0]]
 
         goal_msg.sample_return = False
 
@@ -39,7 +39,7 @@ class SimpleClient(Node):
         goal_msg = FidPoseControlMsg.Goal()
 
         goal_msg.inbeam_approach = [x / 180 * math.pi for x in [55.10, -51.78, 124.84, -73.16, 52.24, 180.0]]
-        goal_msg.inbeam = [x / 180 * math.pi for x in [63.84, -47.71, 98.22, -50.59, 61.00, 180.0]]
+        goal_msg.inbeam = [x / 180 * math.pi for x in [63.85, -47.04, 98.27, -51.31, 61.00, 180.0]]
 
         goal_msg.sample_return = True
         goal_msg.sample_id = sample_id
@@ -65,7 +65,7 @@ def main(args=None):
     rclpy.init(args=args)
 
     # Change the sample name to represent the correct sample to be picked.
-    sample_name = "sample_1"
+    sample_name = "sample_3"
 
     # Read sample ID from the redis server
     redis_client = redis.Redis(host="192.168.56.1", port=6379, db=0)
@@ -73,8 +73,8 @@ def main(args=None):
     tag_id = int(redis_client.hget(tag_key, "id"))
 
     client = SimpleClient()
-    client.send_pickup_goal(tag_id)
-    # client.send_return_sample_goal(tag_id)
+    # client.send_pickup_goal(tag_id)
+    client.send_return_sample_goal(tag_id)
 
     rclpy.spin(client)
     client.destroy_node()
