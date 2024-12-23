@@ -1,4 +1,5 @@
-aruco_pose:
+pose_capture:
+# aruco_pose:
   ros__parameters:
     camera_tf_frame: 'camera_base_map'
     sample_name: 'sample_1'

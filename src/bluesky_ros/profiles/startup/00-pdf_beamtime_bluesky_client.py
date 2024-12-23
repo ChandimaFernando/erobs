@@ -30,7 +30,7 @@ class PickPlaceRedisClient(ActionMovable, Readable):
         # goal_msg = PickPlaceControlMsg.Goal()
         goal_msg = FidPoseControlMsg.Goal()
         goal_msg.sample_id = kwargs.get("sample_id")
-        self.current_sample =  goal_msg.sample_id
+        self.current_sample = goal_msg.sample_id
         goal_msg.sample_return = kwargs.get("sample_return")
         goal_msg.inbeam_approach = [x / 180 * math.pi for x in kwargs.get("inbeam_approach")]
         goal_msg.inbeam = [x / 180 * math.pi for x in kwargs.get("inbeam")]
@@ -45,7 +45,7 @@ class PickPlaceRedisClient(ActionMovable, Readable):
         """Handle regular feedback and print the completion percentage."""
         feedback: FidPoseControlMsg.Feedback = feedback_msg.feedback
         self.get_logger().info(
-            f"Percentage completed: {0} %".format(math.ceil(feedback.status * 100))
+            f"Percentage completed: {math.ceil(feedback.status * 100)} %"
         )
 
     def get_result_callback(self, future):
@@ -68,6 +68,22 @@ class Agent:
     def __init__(self):
         self.loaded = False
         self.current_sample = None
+        self.current_idx = 2
+        self.climbing = True
+        self.counter = 1
+
+    def next_in_seq(self):
+        print(f"experiment counter: {self.counter}")
+        if self.climbing:
+            self.current_idx += 1
+            self.counter += 1
+            if self.current_idx == 6:
+                self.climbing = False
+        else:
+            self.current_idx -= 1
+            self.counter += 1
+            if self.current_idx == 2:
+                self.climbing = True
 
     def tell(self, x, y):
         self.current_sample = f"sample_{x[0]}"
@@ -80,9 +96,9 @@ class Agent:
         # Read sample ID from the redis server 
         tag_key = redis_client.hget("sample_name_index", sample_name).decode("utf-8")
         tag_id = int(redis_client.hget(tag_key, "id"))
-
+        print(f"current tag id : {tag_id}")
         goal_structure = {
-            "inbeam_approach": [55.10, -51.78, 124.84, -73.16, 52.24, 180.0],
+            "inbeam_approach":  [55.10, -58.25, 124.84, -66.72, 52.19, 180.0],
             "inbeam": [63.85, -47.04, 98.27, -51.31, 61.00, 180.0],
             "sample_id": tag_id,
             "sample_return": self.loaded,
@@ -94,7 +110,7 @@ class Agent:
         return goal_structure
 
     def _get_starting_msg(self):
-        msg = self._create_msg("sample_4")
+        msg = self._create_msg("sample_2")
         self.loaded = True # Artificially set self.loaded True because no `ask` on first sync adaptive loop
         return msg
 
@@ -103,10 +119,12 @@ class Agent:
             msg = self._create_msg(self.current_sample)
             self.loaded = False
         else:
-            next_sample = f"sample_{int(np.random.randint(2, 6))}"
+            self.next_in_seq()
+            # next_sample = f"sample_{int(np.random.randint(2, 7))}"
+            next_sample = f"sample_{self.current_idx}"
             msg = self._create_msg(next_sample)
             self.loaded = True
-        print(msg)
+        # print(msg)
         return [msg]
 
 
@@ -119,7 +137,7 @@ def test_plan(node, sample_name):
     tag_id = int(redis_client.hget(tag_key, "id"))
   
     goal_structure = {
-        "inbeam_approach": [55.10, -51.78, 124.84, -73.16, 52.24, 180.0],
+        "inbeam_approach": [55.10, -58.25, 124.84, -66.72, 52.19, 180.0],
         "inbeam": [63.85, -47.04, 98.27, -51.31, 61.00, 180.0],
         "sample_id": tag_id,
         "sample_return": False,
@@ -138,9 +156,9 @@ pick_place_client_node.kind = "hinted"
 ab_det = ABDetector(name="ab_det")
 RE = RunEngine({})
 agent = Agent()
-recommender, queue = recommender_factory(agent, independent_keys=["sample_id"], dependent_keys=["ab_det_a"], max_count=19)
+recommender, queue = recommender_factory(agent, independent_keys=["sample_id"], dependent_keys=["ab_det_a"], max_count=999)
 plan = adaptive_plan([ab_det],
-                     {pick_place_client_node:agent._get_starting_msg()},
+                     {pick_place_client_node: agent._get_starting_msg()},
                      to_recommender=recommender,
                      from_recommender=queue)
 
@@ -149,5 +167,5 @@ plan = adaptive_plan([ab_det],
 def initilaize_pickplace_redis():
     """Python main."""
     #  Change the sample name to represent the correct sample to be picked.
-    sample_name = "sample_3"
+    sample_name = "sample_4"
     RE(test_plan(node=pick_place_client_node, sample_name=sample_name))

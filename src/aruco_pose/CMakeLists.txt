@@ -40,8 +40,12 @@ include_directories(include)  # This makes sure the libraries are visible
 add_executable(aruco_pose src/aruco_pose.cpp)
 ament_target_dependencies(aruco_pose ${dependencies})
 
+add_executable(pose_capture src/pose_capture.cpp)
+ament_target_dependencies(pose_capture ${dependencies})
+
 install(TARGETS
-aruco_pose
+  aruco_pose
+  pose_capture
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}

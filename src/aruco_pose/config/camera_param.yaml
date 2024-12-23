@@ -1,4 +1,5 @@
-aruco_pose:
+pose_capture:
+# aruco_pose:
   ros__parameters:
     intrinsics: # Uses to construct K matrix
       fx: 974.724
