@@ -8,6 +8,13 @@ BSD 3 Clause License. See LICENSE.txt for details.*/
 #include <chrono>
 #include <unordered_map>
 
+#include <visualization_msgs/msg/marker.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
+#include <ament_index_cpp/get_package_share_directory.hpp>
+#include <shape_msgs/msg/mesh.h>
+#include <geometric_shapes/mesh_operations.h>
+#include <geometric_shapes/shape_operations.h>
+
 #include <pdf_beamtime/pdf_beamtime_server.hpp>
 #include <pdf_beamtime/tf_utilities.hpp>
 #include <pdf_beamtime_interfaces/action/fid_pose_control_msg.hpp>
@@ -41,6 +48,7 @@ private:
   std::vector<double, std::allocator<double>> pickup_approach_;
 
   rclcpp_action::Server<FidPoseControlMsg>::SharedPtr fidpose_action_server_;
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_pub_;
 
   void fidpose_handle_accepted(
     const std::shared_ptr<rclcpp_action::ServerGoalHandle<FidPoseControlMsg>> goal_handle);
@@ -55,6 +63,8 @@ private:
 
   moveit::core::MoveItErrorCode return_sample();
   void execute_cleanup();
+
+  void update_env();
 
   bool pickup_pose_saved = false;
   std::vector<double> pre_pickup_approach_joints_;

@@ -277,6 +277,45 @@ std::vector<moveit_msgs::msg::CollisionObject> PdfBeamtimeServer::create_env()
 
     all_obstacles.push_back(obj);
   }
+
+
+  // std::string file_path =
+  //   "package://ur3e_hande_robot_description/meshes/sample_holder/visual/sample_holder.dae";
+  // // Load the mesh
+  // shapes::Mesh * org_mesh = shapes::createMeshFromResource(file_path);
+
+  // shapes::Mesh * mesh = shapes::constructMeshFromVertices(
+  //   org_mesh->vertices, org_mesh->vertex_count,
+  //   0.1, 0.1, 0.1);
+
+
+  // shape_msgs::msg::Mesh mesh_msg;
+  // shapes::ShapeMsg mesh_msg_temp;
+  // shapes::constructMsgFromShape(mesh, mesh_msg_temp);
+  // mesh_msg = boost::get<shape_msgs::msg::Mesh>(mesh_msg_temp);
+
+  // // Define the pose of the object
+  // geometry_msgs::msg::Pose pose;
+  // pose.position.x = 1.0;       // Set x position
+  // pose.position.y = 0.0;       // Set y position
+  // pose.position.z = 0.5;       // Set z position
+  // pose.orientation.w = 1.0;       // Identity orientation
+
+  // // Define the collision object
+  // moveit_msgs::msg::CollisionObject collision_object;
+  // collision_object.id = "custom_object";
+  // collision_object.header.frame_id = "world";
+  // collision_object.meshes.push_back(mesh_msg);
+  // collision_object.mesh_poses.push_back(pose);
+  // collision_object.operation = moveit_msgs::msg::CollisionObject::ADD;
+
+  // // collision_object.scale.x = 0.1;
+  // // collision_object.scale.y = 0.1;
+  // // collision_object.scale.z = 0.1;
+
+
+  // all_obstacles.push_back(collision_object);
+
   return all_obstacles;
 }
 

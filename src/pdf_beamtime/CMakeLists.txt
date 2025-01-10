@@ -14,6 +14,8 @@ find_package(rclcpp_action REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(geometry_msgs)
+find_package(visualization_msgs REQUIRED)
+find_package(ur3e_hande_robot_description)
 
 set(dependencies
   moveit_ros_planning_interface
@@ -23,6 +25,8 @@ set(dependencies
   rclcpp_components
   yaml-cpp
   geometry_msgs
+  visualization_msgs
+  ur3e_hande_robot_description
 )
 
 include_directories(include)  # This makes sure the libraries are visible

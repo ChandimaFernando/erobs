@@ -20,6 +20,13 @@ PdfBeamtimeFidPoseServer::PdfBeamtimeFidPoseServer(
     std::bind(&PdfBeamtimeFidPoseServer::fidpose_handle_goal, this, _1, _2),
     std::bind(&PdfBeamtimeFidPoseServer::fidpose_handle_cancel, this, _1),
     std::bind(&PdfBeamtimeFidPoseServer::fidpose_handle_accepted, this, _1));
+
+  marker_pub_ = node_->create_publisher<visualization_msgs::msg::MarkerArray>(
+    "visualization_marker_array",
+    10);
+
+  update_env();
+
 }
 
 rclcpp_action::GoalResponse PdfBeamtimeFidPoseServer::fidpose_handle_goal(
@@ -72,6 +79,9 @@ void PdfBeamtimeFidPoseServer::execute(
   RCLCPP_INFO(
     node_->get_logger(), "Current state is %s.",
     external_state_names_[static_cast<int>(current_state_)].c_str());
+
+  // update_env();
+  return;
 
   // Reset inner_state_machine at new goal
   inner_state_machine_->set_internal_state(Internal_State::RESTING);
@@ -603,4 +613,57 @@ void PdfBeamtimeFidPoseServer::execute_cleanup()
   reset_fsm();
   inner_state_machine_->set_internal_state(Internal_State::RESTING);
   RCLCPP_INFO(node_->get_logger(), "Cleanup is complete");
+}
+
+void PdfBeamtimeFidPoseServer::update_env()
+{
+
+  RCLCPP_INFO(node_->get_logger(), "Inside Update Env 1 $$$$$$$$$$$");
+
+  // auto marker = visualization_msgs::msg::Marker();
+  // visualization_msgs::msg::MarkerArray marker_array;
+
+  // marker.header.frame_id = "base_link";       // Replace with the desired frame
+  // marker.header.stamp = node_->get_clock()->now();
+  // marker.ns = "dynamic_marker_array";
+  // marker.id = 0;
+  // marker.type = visualization_msgs::msg::Marker::MESH_RESOURCE;
+  // marker.action = visualization_msgs::msg::Marker::ADD;
+
+  // // Set the .dae file location (relative or absolute path)
+  // std::string package_name = "ur3e_hande_robot_description";
+  // std::string package_share_dir = ament_index_cpp::get_package_share_directory(package_name);
+
+  // // Access a specific file in the package
+  // // marker.mesh_resource = package_share_dir + "/meshes/sample_holder/visual/sample_holder.dae";
+
+  // marker.mesh_resource =
+  //   "package://ur3e_hande_robot_description/sample_holder.dae";
+
+  // RCLCPP_INFO(node_->get_logger(), "Path of rss: %s", marker.mesh_resource.c_str());
+
+  // // Set scale, position, and orientation
+  // marker.scale.x = 01.0;       // Scale the mesh as needed
+  // marker.scale.y = 01.0;
+  // marker.scale.z = 01.0;
+
+  // marker.pose.position.x = 0.0;
+  // marker.pose.position.y = 0.0;
+  // marker.pose.position.z = 1.0;
+  // marker.pose.orientation.x = 0.0;
+  // marker.pose.orientation.y = 0.0;
+  // marker.pose.orientation.z = 0.0;
+  // marker.pose.orientation.w = 1.0;
+
+  // // // Set color
+  // marker.color.r = 0.0;
+  // marker.color.g = 0.0;
+  // marker.color.b = 1.0;
+  // marker.color.a = 1.0;
+
+  // marker_array.markers.push_back(marker);
+
+  // marker_pub_->publish(marker_array);
+
+
 }

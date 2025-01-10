@@ -124,5 +124,106 @@
       <origin xyz="0 -0.013 0" rpy="-${pi/2.0} -${pi} 0" />
     </joint>
 
+  <xacro:property name="scaling_factor" value="0.001"/>
+
+  <link name="sample_2">
+    <visual>
+      <origin xyz="0 0 0" rpy=" 0.004 -${pi}  0.314  "/>
+      <geometry>
+        <mesh filename="package://ur3e_hande_robot_description/meshes/sample_holder/visual/sample_holder.dae" scale="${scaling_factor} ${scaling_factor} ${scaling_factor}"/>
+      </geometry>
+      <material name="mat">
+        <color rgba="0.7 0.7 0.7 1"/>
+      </material>
+    </visual>
+  </link>
+
+    <collision>
+      <geometry>
+        <mesh filename="package://ur3e_hande_robot_description/meshes/sample_holder/collision/sample_holder.stl" scale="${scaling_factor} ${scaling_factor} ${scaling_factor}" />
+      </geometry>
+    </collision>
+
+  <joint name="sample_2_to_world" type="fixed">
+      <parent link="world" />
+      <child link="sample_2" />
+      <origin xyz="0.144 -0.622 0.112" rpy="0 0 0" />
+  </joint>
+
+
+
+  <link name="sample_3">
+    <visual>
+      <origin xyz="0 0 0" rpy="0.013 -${pi} 0.629"/>
+      <geometry>
+        <mesh filename="package://ur3e_hande_robot_description/meshes/sample_holder/visual/sample_holder.dae" scale="${scaling_factor} ${scaling_factor} ${scaling_factor}"/>
+      </geometry>
+      <material name="mat">
+        <color rgba="0.7 0.7 0.7 1"/>
+      </material>
+    </visual>
+  </link>
+
+  <joint name="sample_3_to_world" type="fixed">
+      <parent link="world" />
+      <child link="sample_3" />
+      <origin xyz="0.031 -0.643 0.223" rpy="0 0 0" />
+  </joint>
+ 
+    <link name="sample_4">
+    <visual>
+      <origin xyz="0 0 0" rpy="-0.014 -${pi} -0.038"/>
+      <geometry>
+        <mesh filename="package://ur3e_hande_robot_description/meshes/sample_holder/visual/sample_holder.dae" scale="${scaling_factor} ${scaling_factor} ${scaling_factor}"/>
+      </geometry>
+      <material name="mat">
+        <color rgba="0.7 0.7 0.7 1"/>
+      </material>
+    </visual>
+  </link>
+
+  <joint name="sample_4_to_world" type="fixed">
+      <parent link="world" />
+      <child link="sample_4" />
+      <origin xyz="-0.014 -0.617 0.114" rpy="0 0 0" />
+  </joint>
+
+    <link name="sample_5">
+    <visual>
+      <origin xyz="0 0 0" rpy="0.002 -${pi} -0.110"/>
+      <geometry>
+        <mesh filename="package://ur3e_hande_robot_description/meshes/sample_holder/visual/sample_holder.dae" scale="${scaling_factor} ${scaling_factor} ${scaling_factor}"/>
+      </geometry>
+      <material name="mat">
+        <color rgba="0.7 0.7 0.7 1"/>
+      </material>
+    </visual>
+  </link>
+
+  <joint name="sample_5_to_world" type="fixed">
+      <parent link="world" />
+      <child link="sample_5" />
+      <origin xyz="-0.133 -0.617 0.225" rpy="0 0 0" />
+  </joint>
+
+
+    <link name="sample_6">
+    <visual>
+      <origin xyz="0 0 0" rpy="-0.016 -${pi} -0.024"/>
+      <geometry>
+        <mesh filename="package://ur3e_hande_robot_description/meshes/sample_holder/visual/sample_holder.dae" scale="${scaling_factor} ${scaling_factor} ${scaling_factor}"/>
+      </geometry>
+      <material name="mat">
+        <color rgba="0.7 0.7 0.7 1"/>
+      </material>
+    </visual>
+  </link>
+
+  <joint name="sample_6_to_world" type="fixed">
+      <parent link="world" />
+      <child link="sample_6" />
+      <origin xyz="-0.141 -0.566 0.111" rpy="0 0 0" />
+  </joint>
+
 
 </robot>

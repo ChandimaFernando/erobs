@@ -28,6 +28,10 @@ BSD 3 Clause License. See LICENSE.txt for details.*/
 #include <pdf_beamtime/inner_state_machine.hpp>
 #include <pdf_beamtime/state_enum.hpp>
 
+#include <shape_msgs/msg/mesh.h>
+#include <geometric_shapes/mesh_operations.h>
+#include <geometric_shapes/shape_operations.h>
+
 /// @brief Create the obstacle environment and an simple action server for the robot to move
 class PdfBeamtimeServer
 {
@@ -167,6 +171,8 @@ protected:
   void handle_stop();
   /// @brief returns the sample to where it was picked and ready robot to receive a new goal
   virtual void execute_cleanup();
+  // virtual void update_env();
+
   void handle_abort();
   void handle_halt();
 
